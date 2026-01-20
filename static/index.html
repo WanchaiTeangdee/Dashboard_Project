@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <title>Advanced Sales Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Sarabun', sans-serif; background-color: #f0f2f5; margin: 0; padding: 20px; }
+        
+        /* Filter Bar */
+        .filter-bar {
+            background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            display: flex; gap: 15px; align-items: center; margin-bottom: 20px; flex-wrap: wrap;
+        }
+        select { padding: 8px; border: 1px solid #ddd; border-radius: 4px; min-width: 150px; font-family: 'Sarabun'; }
+        button { padding: 8px 20px; background: #2980b9; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #1f618d; }
+
+        /* KPI Cards */
+        .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 20px; }
+        .kpi-card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); text-align: center; }
+        .kpi-title { color: #7f8c8d; font-size: 0.9em; margin-bottom: 5px; }
+        .kpi-value { font-size: 1.8em; font-weight: bold; color: #2c3e50; }
+        .kpi-sub { font-size: 0.8em; color: #27ae60; margin-top: 5px; }
+
+        /* Charts Layout */
+        .chart-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; margin-bottom: 20px; }
+        .chart-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        h3 { margin-top: 0; color: #34495e; border-bottom: 1px solid #eee; padding-bottom: 10px; font-size: 1.1em; }
+
+        @media (max-width: 1000px) { .chart-grid, .chart-row { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+
+    <div class="filter-bar">
+        <h3 style="margin: 0 10px 0 0; border: none;">🔍 ตัวกรอง:</h3>
+        <select id="selYear"></select>
+        <select id="selMonth">
+            <option value="All">ทุกเดือน</option>
+            <option value="1">มกราคม</option>
+            <option value="2">กุมภาพันธ์</option>
+            <option value="3">มีนาคม</option>
+            <option value="4">เมษายน</option>
+            <option value="5">พฤษภาคม</option>
+            <option value="6">มิถุนายน</option>
+            <option value="7">กรกฎาคม</option>
+            <option value="8">สิงหาคม</option>
+            <option value="9">กันยายน</option>
+            <option value="10">ตุลาคม</option>
+            <option value="11">พฤศจิกายน</option>
+            <option value="12">ธันวาคม</option>
+        </select>
+        <select id="selTeam"><option value="All">ทุกทีม</option></select>
+        <select id="selRep"><option value="All">พนักงานทุกคน</option></select>
+        <button onclick="updateDashboard()">กดดูข้อมูล</button>
+    </div>
+
+    <div class="kpi-grid">
+        <div class="kpi-card">
+            <div class="kpi-title">💰 ยอดขาย (ช่วงที่เลือก)</div>
+            <div class="kpi-value" id="kpi-sales-period">0</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-title">📈 ยอดขายสะสม (YTD)</div>
+            <div class="kpi-value" id="kpi-sales-accum">0</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-title">🏪 จำนวน Shop (ช่วงที่เลือก)</div>
+            <div class="kpi-value" id="kpi-shop-period">0</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-title">🏢 จำนวน Shop สะสม (YTD)</div>
+            <div class="kpi-value" id="kpi-shop-accum">0</div>
+        </div>
+    </div>
+
+    <div class="card" style="margin-bottom: 20px;">
+        <h3>📊 เปรียบเทียบยอดขายรายปี (Current vs Previous)</h3>
+        <canvas id="compareChart" height="80"></canvas>
+    </div>
+
+    <div class="chart-row">
+        <div class="card">
+            <h3>🏆 10 อันดับสินค้าขายดี</h3>
+            <canvas id="topProductChart"></canvas>
+        </div>
+        <div class="card">
+            <h3>🤝 10 อันดับลูกค้าสูงสุด</h3>
+            <canvas id="topCustomerChart"></canvas>
+        </div>
+    </div>
+
+    <script>
+        // Global Chart instances
+        let compareChart, topProductChart, topCustomerChart;
+
+        // Formatter (บาท)
+        const fmt = new Intl.NumberFormat('th-TH', { style: 'currency', currency: 'THB' });
+        const numFmt = new Intl.NumberFormat('th-TH');
+
+        async function init() {
+            // โหลดตัวเลือกใส่ Dropdown
+            const res = await fetch('/api/options');
+            const opts = await res.json();
+
+            const selYear = document.getElementById('selYear');
+            opts.years.forEach(y => selYear.add(new Option(y, y)));
+
+            const selTeam = document.getElementById('selTeam');
+            opts.teams.forEach(t => selTeam.add(new Option(t, t)));
+
+            const selRep = document.getElementById('selRep');
+            opts.reps.forEach(r => selRep.add(new Option(r, r)));
+
+            // โหลดข้อมูลครั้งแรก
+            updateDashboard();
+        }
+
+        async function updateDashboard() {
+            const year = document.getElementById('selYear').value;
+            const month = document.getElementById('selMonth').value;
+            const team = document.getElementById('selTeam').value;
+            const rep = document.getElementById('selRep').value;
+
+            // สร้าง Query String
+            const q = `?year=${year}&month=${month}&team=${team}&rep=${rep}`;
+
+            // --- 1. Load KPI ---
+            const kpi = await (await fetch(`/api/kpi${q}`)).json();
+            document.getElementById('kpi-sales-period').innerText = fmt.format(kpi.sales_period);
+            document.getElementById('kpi-sales-accum').innerText = fmt.format(kpi.sales_accum);
+            document.getElementById('kpi-shop-period').innerText = numFmt.format(kpi.shop_period);
+            document.getElementById('kpi-shop-accum').innerText = numFmt.format(kpi.shop_accum);
+
+            // --- 2. Load Comparison Chart ---
+            const compData = await (await fetch(`/api/compare_year${q}`)).json();
+            renderCompareChart(compData, year);
+
+            // --- 3. Load Ranking ---
+            const rankData = await (await fetch(`/api/ranking${q}`)).json();
+            renderRankingCharts(rankData);
+        }
+
+        function renderCompareChart(data, year) {
+            const ctx = document.getElementById('compareChart').getContext('2d');
+            if (compareChart) compareChart.destroy();
+
+            compareChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.labels,
+                    datasets: [
+                        {
+                            label: `ปี ${year}`,
+                            data: data.current_year,
+                            borderColor: '#3498db',
+                            backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                            fill: true,
+                            tension: 0.4
+                        },
+                        {
+                            label: `ปี ${year - 1}`,
+                            data: data.prev_year,
+                            borderColor: '#95a5a6',
+                            borderDash: [5, 5], // เส้นประ
+                            tension: 0.4
+                        }
+                    ]
+                },
+                options: { responsive: true, interaction: { mode: 'index', intersect: false } }
+            });
+        }
+
+        function renderRankingCharts(data) {
+            // Product Chart
+            const ctxP = document.getElementById('topProductChart').getContext('2d');
+            if (topProductChart) topProductChart.destroy();
+            topProductChart = new Chart(ctxP, {
+                type: 'bar',
+                data: {
+                    labels: data.products.map(d => d.label.substring(0, 15) + '...'), // ตัดชื่อให้สั้น
+                    datasets: [{ label: 'ยอดขาย', data: data.products.map(d => d.value), backgroundColor: '#e67e22' }]
+                },
+                options: { indexAxis: 'y' } // กราฟแนวนอน
+            });
+
+            // Customer Chart
+            const ctxC = document.getElementById('topCustomerChart').getContext('2d');
+            if (topCustomerChart) topCustomerChart.destroy();
+            topCustomerChart = new Chart(ctxC, {
+                type: 'bar',
+                data: {
+                    labels: data.customers.map(d => d.label.substring(0, 15) + '...'),
+                    datasets: [{ label: 'ยอดขาย', data: data.customers.map(d => d.value), backgroundColor: '#2ecc71' }]
+                },
+                options: { indexAxis: 'y' }
+            });
+        }
+
+        init();
+    </script>
+</body>
+</html>
