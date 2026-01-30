@@ -136,19 +136,49 @@
                     <canvas id="compareChart" height="80"></canvas>
                 </div>
 
-                <div class="card section">
-                    <h3 class="card-title"><span class="iconify" data-icon="ant-design:table-outlined"></span> PLP Sale Report</h3>
-                    <div class="table-wrap">
-                        <table class="data-table">
-                            <thead>
-                                <tr>
-                                    <th>กลุ่มสินค้า (PLP)</th>
-                                    <th>ยอดขาย</th>
-                                    <th>จำนวน</th>
-                                </tr>
-                            </thead>
-                            <tbody id="plpTableBody"></tbody>
-                        </table>
+                <div class="card section" id="customerSummaryCard">
+                    <h3 class="card-title"><span class="iconify" data-icon="ant-design:profile-outlined"></span> การ์ดลูกค้ารวม</h3>
+                    <div class="row">
+                        <select id="customerYear"></select>
+                        <select id="customerSelect">
+                            <option value="">เลือกชื่อ/รหัสลูกค้า</option>
+                        </select>
+                        <button class="btn btn-primary" onclick="loadCustomerSummary()">แสดงรายงาน</button>
+                        <span id="customerSummaryStatus" class="muted-text"></span>
+                    </div>
+                    <div class="chart-row" style="margin-top:16px;">
+                        <div class="card">
+                            <h3 class="card-title"><span class="iconify" data-icon="ant-design:unordered-list-outlined"></span> รายการสินค้าที่ซื้อ</h3>
+                            <div class="table-wrap">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>รหัสสินค้า</th>
+                                            <th>รายละเอียด</th>
+                                            <th>ราคา/หน่วย</th>
+                                            <th>รวมจำนวน</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="customerProductBody"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="card">
+                            <h3 class="card-title"><span class="iconify" data-icon="ant-design:calendar-outlined"></span> จำนวนซื้อรายเดือน</h3>
+                            <div class="table-wrap">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>สินค้า</th>
+                                            <th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th>
+                                            <th>7</th><th>8</th><th>9</th><th>10</th><th>11</th><th>12</th>
+                                            <th>รวม</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="customerMonthBody"></tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -203,6 +233,7 @@
             const selRep = document.getElementById('selRep');
             const selRegion = document.getElementById('selRegion');
             const selProvince = document.getElementById('selProvince');
+            const customerYear = document.getElementById('customerYear');
 
             selYear.innerHTML = '';
             selTeam.innerHTML = '<option value="All">ทุกทีม</option>';
@@ -210,12 +241,29 @@
             selRegion.innerHTML = '<option value="All">ทุกภาค</option>';
 
             opts.years.forEach(y => selYear.add(new Option(y, y)));
+            if (customerYear) {
+                customerYear.innerHTML = '';
+                opts.years.forEach(y => customerYear.add(new Option(y, y)));
+            }
             opts.teams.forEach(t => selTeam.add(new Option(t, t)));
             opts.reps.forEach(r => selRep.add(new Option(r, r)));
             (opts.regions || []).forEach(r => selRegion.add(new Option(r, r)));
 
             buildProvinceOptions(selProvince, opts.provinces_by_region, 'ทุกจังหวัด');
             selRegion.onchange = () => updateProvinceByRegion(selRegion, selProvince, opts.provinces_by_region, 'ทุกจังหวัด');
+        }
+
+        async function loadCustomerOptions() {
+            const select = document.getElementById('customerSelect');
+            if (!select) return;
+            const res = await fetch('/api/customer_options');
+            if (!res.ok) return;
+            const data = await res.json();
+            select.innerHTML = '<option value="">เลือกชื่อ/รหัสลูกค้า</option>';
+            (data.items || []).forEach(item => {
+                const option = new Option(item.label, item.value || '');
+                select.add(option);
+            });
         }
 
         async function loadCurrentUser() {
@@ -260,6 +308,7 @@
             if (!user) return;
             setupSidebarToggle();
             await loadOptions();
+            await loadCustomerOptions();
             updateDashboard();
         }
 
@@ -289,9 +338,65 @@
 
             const provinceYtdData = await (await fetch(`/api/sales_by_province_ytd${q}`)).json();
             renderProvincePieChart(provinceYtdData, 'provincePieYtdChart');
+        }
 
-            const plpData = await (await fetch(`/api/plp_report${q}`)).json();
-            renderPlpTable(plpData);
+        async function loadCustomerSummary() {
+            const year = document.getElementById('customerYear').value;
+            const customer = document.getElementById('customerSelect').value;
+            const status = document.getElementById('customerSummaryStatus');
+            if (!year || !customer) {
+                if (status) status.textContent = 'กรุณาเลือกปี และชื่อ/รหัสลูกค้า';
+                return;
+            }
+            if (status) status.textContent = 'กำลังโหลด...';
+
+            const res = await fetch(`/api/customer_purchase_summary?year=${year}&customer=${encodeURIComponent(customer)}`);
+            if (!res.ok) {
+                if (status) status.textContent = 'โหลดข้อมูลไม่สำเร็จ';
+                return;
+            }
+            const data = await res.json();
+            renderCustomerTables(data);
+            if (status) status.textContent = '';
+        }
+
+        function renderCustomerTables(data) {
+            const leftBody = document.getElementById('customerProductBody');
+            const rightBody = document.getElementById('customerMonthBody');
+            if (!leftBody || !rightBody) return;
+            leftBody.innerHTML = '';
+            rightBody.innerHTML = '';
+
+            (data.items || []).forEach(item => {
+                const trLeft = document.createElement('tr');
+                trLeft.innerHTML = `
+                    <td>${item.product_code || ''}</td>
+                    <td>${item.product_name || ''}</td>
+                    <td>${(item.unit_price ?? 0).toLocaleString('th-TH')}</td>
+                    <td>${(item.total ?? 0).toLocaleString('th-TH')}</td>
+                `;
+                leftBody.appendChild(trLeft);
+
+                const months = item.months || {};
+                const trRight = document.createElement('tr');
+                trRight.innerHTML = `
+                    <td>${item.product_code || ''}</td>
+                    <td>${(months['1'] ?? 0).toLocaleString('th-TH')}</td>
+                    <td>${(months['2'] ?? 0).toLocaleString('th-TH')}</td>
+                    <td>${(months['3'] ?? 0).toLocaleString('th-TH')}</td>
+                    <td>${(months['4'] ?? 0).toLocaleString('th-TH')}</td>
+                    <td>${(months['5'] ?? 0).toLocaleString('th-TH')}</td>
+                    <td>${(months['6'] ?? 0).toLocaleString('th-TH')}</td>
+                    <td>${(months['7'] ?? 0).toLocaleString('th-TH')}</td>
+                    <td>${(months['8'] ?? 0).toLocaleString('th-TH')}</td>
+                    <td>${(months['9'] ?? 0).toLocaleString('th-TH')}</td>
+                    <td>${(months['10'] ?? 0).toLocaleString('th-TH')}</td>
+                    <td>${(months['11'] ?? 0).toLocaleString('th-TH')}</td>
+                    <td>${(months['12'] ?? 0).toLocaleString('th-TH')}</td>
+                    <td>${(item.total ?? 0).toLocaleString('th-TH')}</td>
+                `;
+                rightBody.appendChild(trRight);
+            });
         }
 
         async function uploadExcel() {
@@ -416,21 +521,6 @@
             } else {
                 provincePieYtdChart = chart;
             }
-        }
-
-        function renderPlpTable(data) {
-            const tbody = document.getElementById('plpTableBody');
-            if (!tbody) return;
-            tbody.innerHTML = '';
-            (data.items || []).forEach(item => {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td>${item.plp || ''}</td>
-                    <td>${fmt.format(item.sales || 0)}</td>
-                    <td>${(item.quantity ?? 0).toLocaleString('th-TH')}</td>
-                `;
-                tbody.appendChild(tr);
-            });
         }
 
         init();

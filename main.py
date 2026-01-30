@@ -295,6 +295,34 @@ def get_options(user=Depends(get_current_user)):
             "provinces": PROVINCES
         }
 
+@app.get("/api/customer_options")
+def get_customer_options(user=Depends(get_current_user)):
+    sql = """
+        SELECT DISTINCT customer_code, customer_name
+        FROM sales_transactions
+        WHERE customer_code IS NOT NULL OR customer_name IS NOT NULL
+        ORDER BY customer_name NULLS LAST, customer_code NULLS LAST
+    """
+    with engine.connect() as conn:
+        rows = conn.execute(text(sql)).fetchall()
+
+    items = []
+    for row in rows:
+        code = normalize_customer_code(row[0])
+        name = row[1]
+        if code and name:
+            label = f"{name} ({code})"
+            value = code
+        elif code:
+            label = code
+            value = code
+        else:
+            label = name
+            value = name
+        items.append({"label": label, "value": value, "code": code, "name": name})
+
+    return {"items": items}
+
 @app.get("/api/home_summary")
 def get_home_summary(user=Depends(get_current_user)):
     with engine.connect() as conn:
@@ -636,42 +664,49 @@ def get_sales_by_province_ytd(
 
     return {"items": items}
 
-# 6.1 API PLP Sale Report
-@app.get("/api/plp_report")
-def get_plp_report(
+# 6.2 Customer purchase summary (by product & month)
+@app.get("/api/customer_purchase_summary")
+def get_customer_purchase_summary(
     year: int,
-    month: Optional[str] = 'All',
-    team: Optional[str] = 'All',
-    rep: Optional[str] = 'All',
-    region: Optional[str] = 'All',
-    province: Optional[str] = 'All',
+    customer: str = Query(..., min_length=1),
     user=Depends(get_current_user)
 ):
-    where, params = build_filter(year, month, team, rep, region, province)
-
-    sql = f"""
-        SELECT COALESCE(product_group, '(ไม่ระบุกลุ่มสินค้า)') as plp,
-               COALESCE(SUM(total_amount_non_vat), 0) as sales,
-               COALESCE(SUM(quantity), 0) as qty
+    sql = """
+        SELECT
+            COALESCE(product_code, '(ไม่ระบุรหัสสินค้า)') as product_code,
+            COALESCE(product_name, '(ไม่ระบุชื่อสินค้า)') as product_name,
+            COALESCE(unit_price, 0) as unit_price,
+            EXTRACT(MONTH FROM document_date) as month,
+            COALESCE(SUM(quantity), 0) as qty
         FROM sales_transactions
-        {where}
-        GROUP BY plp
-        ORDER BY sales DESC
+        WHERE EXTRACT(YEAR FROM document_date) = :year
+          AND (customer_code = :customer OR customer_name = :customer)
+        GROUP BY product_code, product_name, unit_price, month
+        ORDER BY product_name ASC
     """
 
+    params = {"year": year, "customer": customer}
     with engine.connect() as conn:
         rows = conn.execute(text(sql), params).fetchall()
 
-    return {
-        "items": [
-            {
-                "plp": row[0],
-                "sales": float(row[1]),
-                "quantity": float(row[2])
+    items_map = {}
+    for row in rows:
+        key = (row[0], row[1], float(row[2] or 0))
+        month = int(row[3]) if row[3] is not None else None
+        qty = float(row[4] or 0)
+        if key not in items_map:
+            items_map[key] = {
+                "product_code": row[0],
+                "product_name": row[1],
+                "unit_price": float(row[2] or 0),
+                "months": {str(m): 0 for m in range(1, 13)},
+                "total": 0
             }
-            for row in rows
-        ]
-    }
+        if month:
+            items_map[key]["months"][str(month)] += qty
+            items_map[key]["total"] += qty
+
+    return {"items": list(items_map.values())}
 
 # 7. Employees (Admin only)
 @app.get("/api/employees")
@@ -830,6 +865,7 @@ def download_employee_template(user=Depends(require_admin)):
 def list_customers(
     region: Optional[str] = None,
     province: Optional[str] = None,
+    search: Optional[str] = None,
     user=Depends(require_admin)
 ):
     conditions = []
@@ -858,6 +894,11 @@ def list_customers(
                 placeholders.append(f":{key}")
                 params[key] = name
             conditions.append(f"province IN ({', '.join(placeholders)})")
+
+    if search:
+        search_value = f"%{search.strip()}%"
+        conditions.append("(customer_code ILIKE :search OR customer_name ILIKE :search)")
+        params["search"] = search_value
 
     where_clause = ""
     if conditions:

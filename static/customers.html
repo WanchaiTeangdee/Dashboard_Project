@@ -30,7 +30,7 @@
                     <span class="nav-caret iconify" data-icon="ant-design:down-outlined"></span>
                 </button>
                 <div class="nav-sub" id="settingsMenu">
-                    <a class="nav-sub-item" href="/profile"><span class="iconify" data-icon="ant-design:user-outlined"></span> โปรไฟล์ของฉัน</a>
+                    <!-- <a class="nav-sub-item" href="/profile"><span class="iconify" data-icon="ant-design:user-outlined"></span> โปรไฟล์ของฉัน</a> -->
                     <a class="nav-sub-item" href="/employees"><span class="iconify" data-icon="ant-design:team-outlined"></span> จัดการข้อมูลพนักงาน</a>
                     <a class="nav-sub-item active" href="/customers"><span class="iconify" data-icon="ant-design:solution-outlined"></span> จัดการข้อมูลลูกค้า</a>
                 </div>
@@ -57,10 +57,11 @@
             <div class="card section">
                 <h3 class="card-title"><span class="iconify" data-icon="ant-design:filter-outlined"></span> ตัวกรอง</h3>
                 <div class="row">
+                    <input type="text" id="customerSearch" placeholder="ค้นหา (รหัสลูกค้า/ชื่อลูกค้า)" />
                     <select id="customerRegion">
                         <option value="">ทุกภาค</option>
                     </select>
-                    <select id="customerProvince">
+                    <select id="customerProvinceFilter">
                         <option value="">ทุกจังหวัด</option>
                     </select>
                 </div>
@@ -74,9 +75,19 @@
                 <h3 class="card-title"><span class="iconify" data-icon="ant-design:form-outlined"></span> เพิ่มลูกค้า</h3>
                 <div class="grid-form">
                     <input type="hidden" id="customerId" />
-                    <input type="text" id="customerCode" placeholder="รหัสลูกค้า" />
-                    <input type="text" id="customerName" placeholder="ชื่อลูกค้า" />
-                    <input type="text" id="customerProvince" placeholder="จังหวัด" />
+                    <div class="field">
+                        <label for="customerCode">รหัสลูกค้า</label>
+                        <input type="text" id="customerCode" placeholder="รหัสลูกค้า" />
+                    </div>
+                    <div class="field">
+                        <label for="customerName">ชื่อลูกค้า</label>
+                        <input type="text" id="customerName" placeholder="ชื่อลูกค้า" />
+                    </div>
+                    <div class="field">
+                        <label for="customerProvince">จังหวัด</label>
+                        <select id="customerProvince" aria-label="จังหวัด"></select>
+                        <input type="hidden" id="customerRegionValue" />
+                    </div>
                 </div>
                 <div class="row row-space">
                     <button class="btn btn-primary" id="customerSaveBtn" onclick="saveCustomer()">บันทึก</button>
@@ -116,6 +127,50 @@
                 </div>
             </div>
         </main>
+    </div>
+
+    <div class="modal-overlay" id="customerEditModal" aria-hidden="true">
+        <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="customerEditTitle">
+            <div class="modal-header">
+                <h3 class="card-title" id="customerEditTitle"><span class="iconify" data-icon="ant-design:edit-outlined"></span> แก้ไขข้อมูลลูกค้า</h3>
+                <button class="btn btn-ghost" type="button" onclick="closeCustomerEditModal()">ปิด</button>
+            </div>
+            <div class="grid-form">
+                <input type="hidden" id="customerEditId" />
+                <div class="field">
+                    <label for="customerEditCode">รหัสลูกค้า</label>
+                    <input type="text" id="customerEditCode" placeholder="รหัสลูกค้า" />
+                </div>
+                <div class="field">
+                    <label for="customerEditName">ชื่อลูกค้า</label>
+                    <input type="text" id="customerEditName" placeholder="ชื่อลูกค้า" />
+                </div>
+                <div class="field">
+                    <label for="customerEditProvince">จังหวัด</label>
+                    <select id="customerEditProvince" aria-label="จังหวัด"></select>
+                    <input type="hidden" id="customerEditRegion" />
+                </div>
+            </div>
+            <div class="row row-space">
+                <button class="btn btn-primary" type="button" onclick="saveCustomerModal()">บันทึกการแก้ไข</button>
+                <button class="btn btn-ghost" type="button" onclick="closeCustomerEditModal()">ยกเลิก</button>
+                <span id="customerEditStatus" class="muted-text"></span>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="customerDeleteModal" aria-hidden="true">
+        <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="customerDeleteTitle">
+            <div class="modal-header">
+                <h3 class="card-title" id="customerDeleteTitle"><span class="iconify" data-icon="ant-design:warning-outlined"></span> ยืนยันการลบลูกค้า</h3>
+                <button class="btn btn-ghost" type="button" onclick="closeCustomerDeleteModal()">ปิด</button>
+            </div>
+            <p class="muted-text">ต้องการลบลูกค้ารายนี้หรือไม่?</p>
+            <div class="row row-space">
+                <button class="btn btn-danger" type="button" onclick="confirmDeleteCustomer()">ลบ</button>
+                <button class="btn btn-ghost" type="button" onclick="closeCustomerDeleteModal()">ยกเลิก</button>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -181,28 +236,43 @@
             });
         }
 
+        function getRegionByProvince(province, provincesByRegion) {
+            if (!province) return '';
+            return Object.keys(provincesByRegion).find(region =>
+                (provincesByRegion[region] || []).includes(province)
+            ) || '';
+        }
+
         async function loadCustomerFilters() {
             const res = await fetch('/api/options');
             if (!res.ok) return;
             const opts = await res.json();
 
             const regionSelect = document.getElementById('customerRegion');
-            const provinceSelect = document.getElementById('customerProvince');
+            const provinceSelect = document.getElementById('customerProvinceFilter');
 
             regionSelect.innerHTML = '<option value="">ทุกภาค</option>';
             (opts.regions || []).forEach(r => regionSelect.add(new Option(r, r)));
             buildProvinceOptions(provinceSelect, opts.provinces_by_region || {}, 'ทุกจังหวัด');
 
             regionSelect.onchange = () => updateProvinceByRegion(regionSelect, provinceSelect, opts.provinces_by_region || {});
+            const addProvinceSelect = document.getElementById('customerProvince');
+            buildProvinceOptions(addProvinceSelect, opts.provinces_by_region || {}, 'เลือกจังหวัด');
+            addProvinceSelect.onchange = () => {
+                const region = getRegionByProvince(addProvinceSelect.value, opts.provinces_by_region || {});
+                document.getElementById('customerRegionValue').value = region;
+            };
         }
 
         async function loadCustomers() {
             const region = document.getElementById('customerRegion').value;
-            const province = document.getElementById('customerProvince').value;
+            const province = document.getElementById('customerProvinceFilter').value;
+            const search = document.getElementById('customerSearch').value.trim();
 
             const params = new URLSearchParams();
             if (region) params.set('region', region);
             if (province) params.set('province', province);
+            if (search) params.set('search', search);
 
             const res = await fetch(`/api/customers?${params.toString()}`);
             if (!res.ok) return;
@@ -217,8 +287,8 @@
                     <td>${item.province || ''}</td>
                     <td>${item.region || ''}</td>
                     <td class="table-actions">
-                        <button class="btn btn-ghost" onclick='editCustomer(${JSON.stringify(item)})'>แก้ไข</button>
-                        <button class="btn btn-ghost" onclick="deleteCustomer(${item.id})">ลบ</button>
+                        <button class="btn btn-ghost" onclick='openCustomerEditModal(${JSON.stringify(item)})'>แก้ไข</button>
+                        <button class="btn btn-danger" onclick="openCustomerDeleteModal(${item.id})">ลบ</button>
                     </td>
                 `;
                 tbody.appendChild(tr);
@@ -231,7 +301,8 @@
 
         function clearCustomerFilter() {
             document.getElementById('customerRegion').value = '';
-            const provinceSelect = document.getElementById('customerProvince');
+            document.getElementById('customerSearch').value = '';
+            const provinceSelect = document.getElementById('customerProvinceFilter');
             const regionSelect = document.getElementById('customerRegion');
             if (window.__provincesByRegion) {
                 updateProvinceByRegion(regionSelect, provinceSelect, window.__provincesByRegion);
@@ -246,17 +317,62 @@
             document.getElementById('customerCode').value = '';
             document.getElementById('customerName').value = '';
             document.getElementById('customerProvince').value = '';
+            document.getElementById('customerRegionValue').value = '';
             document.getElementById('customerStatus').textContent = '';
             document.getElementById('customerSaveBtn').textContent = 'บันทึก';
         }
 
-        function editCustomer(item) {
-            document.getElementById('customerId').value = item.id || '';
-            document.getElementById('customerCode').value = item.customer_code || '';
-            document.getElementById('customerName').value = item.customer_name || '';
-            document.getElementById('customerProvince').value = item.province || '';
-            document.getElementById('customerSaveBtn').textContent = 'บันทึกการแก้ไข';
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+        function openCustomerEditModal(item) {
+            const modal = document.getElementById('customerEditModal');
+            if (!modal) return;
+            document.getElementById('customerEditId').value = item.id || '';
+            document.getElementById('customerEditCode').value = item.customer_code || '';
+            document.getElementById('customerEditName').value = item.customer_name || '';
+            document.getElementById('customerEditProvince').value = item.province || '';
+            const regionValue = item.region || getRegionByProvince(item.province, window.__provincesByRegion || {});
+            document.getElementById('customerEditRegion').value = regionValue || '';
+            document.getElementById('customerEditStatus').textContent = '';
+            modal.classList.add('active');
+            modal.setAttribute('aria-hidden', 'false');
+        }
+
+        function closeCustomerEditModal() {
+            const modal = document.getElementById('customerEditModal');
+            if (!modal) return;
+            modal.classList.remove('active');
+            modal.setAttribute('aria-hidden', 'true');
+        }
+
+        async function saveCustomerModal() {
+            const status = document.getElementById('customerEditStatus');
+            status.textContent = 'กำลังบันทึก...';
+            const customerId = document.getElementById('customerEditId').value;
+            if (!customerId) {
+                status.textContent = 'ไม่พบรหัสลูกค้า';
+                return;
+            }
+
+            const payload = {
+                customer_code: document.getElementById('customerEditCode').value || null,
+                customer_name: document.getElementById('customerEditName').value || null,
+                province: document.getElementById('customerEditProvince').value || null,
+                region: document.getElementById('customerEditRegion').value || null
+            };
+
+            const res = await fetch(`/api/customers/${customerId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!res.ok) {
+                status.textContent = 'บันทึกไม่สำเร็จ';
+                return;
+            }
+
+            status.textContent = 'บันทึกสำเร็จ';
+            closeCustomerEditModal();
+            await loadCustomers();
         }
 
         async function saveCustomer() {
@@ -266,7 +382,8 @@
             const payload = {
                 customer_code: document.getElementById('customerCode').value || null,
                 customer_name: document.getElementById('customerName').value || null,
-                province: document.getElementById('customerProvince').value || null
+                province: document.getElementById('customerProvince').value || null,
+                region: document.getElementById('customerRegionValue').value || null
             };
 
             const url = customerId ? `/api/customers/${customerId}` : '/api/customers';
@@ -287,13 +404,32 @@
             await loadCustomers();
         }
 
-        async function deleteCustomer(id) {
-            if (!confirm('ต้องการลบลูกค้ารายนี้หรือไม่?')) return;
-            const res = await fetch(`/api/customers/${id}`, { method: 'DELETE' });
+        let pendingCustomerDeleteId = null;
+
+        function openCustomerDeleteModal(id) {
+            pendingCustomerDeleteId = id;
+            const modal = document.getElementById('customerDeleteModal');
+            if (!modal) return;
+            modal.classList.add('active');
+            modal.setAttribute('aria-hidden', 'false');
+        }
+
+        function closeCustomerDeleteModal() {
+            const modal = document.getElementById('customerDeleteModal');
+            if (!modal) return;
+            modal.classList.remove('active');
+            modal.setAttribute('aria-hidden', 'true');
+            pendingCustomerDeleteId = null;
+        }
+
+        async function confirmDeleteCustomer() {
+            if (!pendingCustomerDeleteId) return;
+            const res = await fetch(`/api/customers/${pendingCustomerDeleteId}`, { method: 'DELETE' });
             if (!res.ok) {
                 alert('ลบไม่สำเร็จ');
                 return;
             }
+            closeCustomerDeleteModal();
             await loadCustomers();
         }
 
@@ -332,6 +468,11 @@
                 window.__provincesByRegion = opts.provinces_by_region || {};
             }
             await loadCustomerFilters();
+            buildProvinceOptions(document.getElementById('customerEditProvince'), window.__provincesByRegion || {}, 'เลือกจังหวัด');
+            document.getElementById('customerEditProvince').onchange = () => {
+                const region = getRegionByProvince(document.getElementById('customerEditProvince').value, window.__provincesByRegion || {});
+                document.getElementById('customerEditRegion').value = region;
+            };
             await loadCustomers();
         }
 

@@ -6,18 +6,33 @@
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-    <div class="login-page">
-        <div class="login-card">
-            <h2 class="login-title">เข้าสู่ระบบ</h2>
-            <div class="grid-form">
-                <input type="text" id="username" placeholder="Username" />
-                <input type="password" id="password" placeholder="Password" />
+    <div class="login-layout">
+        <section class="login-hero">
+            <div class="login-hero-illustration">
+                <img src="/static/undraw_data_25jw.svg" alt="ภาพประกอบกราฟข้อมูล" />
             </div>
-            <div class="login-actions">
-                <button class="btn btn-primary" onclick="login()">เข้าสู่ระบบ</button>
+            <div class="login-hero-footer">โปลิฟาร์ม</div>
+        </section>
+        <section class="login-panel">
+            <div class="login-card">
+                <h2 class="login-title">เข้าสู่ระบบ</h2>
+                <label for="username">ชื่อผู้ใช้</label>
+                <input type="text" id="username" placeholder="กรอกชื่อผู้ใช้" />
+                <label for="password">รหัสผ่าน</label>
+                <div class="password-field">
+                    <input type="password" id="password" placeholder="กรอกรหัสผ่าน" />
+                    <button type="button" class="toggle-password" aria-label="แสดงรหัสผ่าน" onclick="togglePassword()" onmousedown="event.preventDefault()">
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M12 5c-5 0-9.27 3.11-11 7 1.73 3.89 6 7 11 7s9.27-3.11 11-7c-1.73-3.89-6-7-11-7Zm0 11a4 4 0 1 1 0-8 4 4 0 0 1 0 8Z"/>
+                        </svg>
+                    </button>
+                </div>
+                <div id="loginStatus" class="login-status"></div>
+                <div class="login-actions">
+                    <button class="btn btn-primary login-button" onclick="login()">เข้าสู่ระบบ</button>
+                </div>
             </div>
-            <div id="loginStatus" class="muted-text" style="margin-top:10px;"></div>
-        </div>
+        </section>
     </div>
 
     <script>
@@ -27,11 +42,11 @@
             const password = document.getElementById('password').value;
 
             if (!username || !password) {
-                status.textContent = 'กรุณากรอกชื่อผู้ใช้และรหัสผ่าน';
+                status.textContent = 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง';
                 return;
             }
 
-            status.textContent = 'กำลังเข้าสู่ระบบ...';
+            status.textContent = '';
             const res = await fetch('/api/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -44,6 +59,19 @@
             }
 
             window.location.href = '/';
+        }
+
+        function togglePassword() {
+            const input = document.getElementById('password');
+            const button = document.querySelector('.toggle-password');
+            const isHidden = input.type === 'password';
+            input.type = isHidden ? 'text' : 'password';
+            button.setAttribute('aria-label', isHidden ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน');
+            if (!isHidden) {
+                button.classList.remove('blink');
+                void button.offsetWidth;
+                button.classList.add('blink');
+            }
         }
     </script>
 </body>

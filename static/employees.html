@@ -30,7 +30,7 @@
                     <span class="nav-caret iconify" data-icon="ant-design:down-outlined"></span>
                 </button>
                 <div class="nav-sub" id="settingsMenu">
-                    <a class="nav-sub-item" href="/profile"><span class="iconify" data-icon="ant-design:user-outlined"></span> โปรไฟล์ของฉัน</a>
+                    <!-- <a class="nav-sub-item" href="/profile"><span class="iconify" data-icon="ant-design:user-outlined"></span> โปรไฟล์ของฉัน</a> -->
                     <a class="nav-sub-item active" href="/employees"><span class="iconify" data-icon="ant-design:team-outlined"></span> จัดการข้อมูลพนักงาน</a>
                     <a class="nav-sub-item" href="/customers"><span class="iconify" data-icon="ant-design:solution-outlined"></span> จัดการข้อมูลลูกค้า</a>
                 </div>
@@ -58,15 +58,42 @@
                 <h3 class="card-title"><span class="iconify" data-icon="ant-design:form-outlined"></span> เพิ่มพนักงาน</h3>
                 <div class="grid-form">
                     <input type="hidden" id="empId" />
-                    <input type="text" id="empUsername" placeholder="Username" />
-                    <input type="password" id="empPassword" placeholder="Password" />
-                    <input type="text" id="empAreaCode" placeholder="รหัสเขต" />
-                    <input type="text" id="empFirstName" placeholder="ผู้แทน (ชื่อ)" />
-                    <input type="text" id="empLastName" placeholder="นามสกุล" />
-                    <input type="text" id="empTeam" placeholder="ทีม" />
-                    <input type="text" id="empTerritory" placeholder="เขต" />
-                    <input type="text" id="empNickname" placeholder="ชื่อเล่น" />
-                    <input type="email" id="empEmail" placeholder="Mail" />
+                    <div class="field">
+                        <label for="empUsername">Username</label>
+                        <input type="text" id="empUsername" placeholder="Username" />
+                    </div>
+                    <div class="field">
+                        <label for="empPassword">Password</label>
+                        <input type="password" id="empPassword" placeholder="Password" />
+                    </div>
+                    <div class="field">
+                        <label for="empAreaCode">รหัสเขต</label>
+                        <input type="text" id="empAreaCode" placeholder="รหัสเขต" />
+                    </div>
+                    <div class="field">
+                        <label for="empFirstName">ชื่อ</label>
+                        <input type="text" id="empFirstName" placeholder="ผู้แทน (ชื่อ)" />
+                    </div>
+                    <div class="field">
+                        <label for="empLastName">นามสกุล</label>
+                        <input type="text" id="empLastName" placeholder="นามสกุล" />
+                    </div>
+                    <div class="field">
+                        <label for="empTeam">ทีม</label>
+                        <input type="text" id="empTeam" placeholder="ทีม" />
+                    </div>
+                    <div class="field">
+                        <label for="empTerritory">เขต</label>
+                        <input type="text" id="empTerritory" placeholder="เขต" />
+                    </div>
+                    <div class="field">
+                        <label for="empNickname">ชื่อเล่น</label>
+                        <input type="text" id="empNickname" placeholder="ชื่อเล่น" />
+                    </div>
+                    <div class="field">
+                        <label for="empEmail">Mail</label>
+                        <input type="email" id="empEmail" placeholder="Mail" />
+                    </div>
                 </div>
                 <div class="row row-space">
                     <button class="btn btn-primary" id="employeeSaveBtn" onclick="saveEmployee()">บันทึก</button>
@@ -90,26 +117,72 @@
 
             <div class="card section">
                 <h3 class="card-title"><span class="iconify" data-icon="ant-design:table-outlined"></span> รายการพนักงาน</h3>
-                <div class="table-wrap">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Username</th>
-                                <th>รหัสเขต</th>
-                                <th>ผู้แทน</th>
-                                <th>นามสกุล</th>
-                                <th>ทีม</th>
-                                <th>เขต</th>
-                                <th>ชื่อเล่น</th>
-                                <th>Mail</th>
-                                <th>การจัดการ</th>
-                            </tr>
-                        </thead>
-                        <tbody id="employeeTableBody"></tbody>
-                    </table>
+                <div class="employee-toolbar">
+                    <div class="employee-search">
+                        <span class="iconify" data-icon="ant-design:search-outlined"></span>
+                        <input type="text" id="employeeSearch" placeholder="ค้นหาบุคลากร..." />
+                    </div>
+                    <select id="employeeTeamFilter">
+                        <option value="">ทุกทีม</option>
+                    </select>
+                    <span class="employee-count" id="employeeCount"></span>
                 </div>
+                <div class="employee-grid" id="employeeCardGrid"></div>
             </div>
         </main>
+    </div>
+
+    <div class="modal-overlay" id="employeeEditModal" aria-hidden="true">
+        <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="employeeEditTitle">
+            <div class="modal-header">
+                <h3 class="card-title" id="employeeEditTitle"><span class="iconify" data-icon="ant-design:edit-outlined"></span> แก้ไขข้อมูลพนักงาน</h3>
+                <button class="btn btn-ghost" type="button" onclick="closeEditModal()">ปิด</button>
+            </div>
+            <div class="grid-form">
+                <input type="hidden" id="empEditId" />
+                <div class="field">
+                    <label for="empEditUsername">Username</label>
+                    <input type="text" id="empEditUsername" placeholder="Username" />
+                </div>
+                <div class="field">
+                    <label for="empEditPassword">Password</label>
+                    <input type="password" id="empEditPassword" placeholder="Password (ใส่เมื่อเปลี่ยน)" />
+                </div>
+                <div class="field">
+                    <label for="empEditAreaCode">รหัสเขต</label>
+                    <input type="text" id="empEditAreaCode" placeholder="รหัสเขต" />
+                </div>
+                <div class="field">
+                    <label for="empEditFirstName">ชื่อ</label>
+                    <input type="text" id="empEditFirstName" placeholder="ผู้แทน (ชื่อ)" />
+                </div>
+                <div class="field">
+                    <label for="empEditLastName">นามสกุล</label>
+                    <input type="text" id="empEditLastName" placeholder="นามสกุล" />
+                </div>
+                <div class="field">
+                    <label for="empEditTeam">ทีม</label>
+                    <input type="text" id="empEditTeam" placeholder="ทีม" />
+                </div>
+                <div class="field">
+                    <label for="empEditTerritory">เขต</label>
+                    <input type="text" id="empEditTerritory" placeholder="เขต" />
+                </div>
+                <div class="field">
+                    <label for="empEditNickname">ชื่อเล่น</label>
+                    <input type="text" id="empEditNickname" placeholder="ชื่อเล่น" />
+                </div>
+                <div class="field">
+                    <label for="empEditEmail">Mail</label>
+                    <input type="email" id="empEditEmail" placeholder="Mail" />
+                </div>
+            </div>
+            <div class="row row-space">
+                <button class="btn btn-primary" type="button" onclick="saveEmployeeModal()">บันทึกการแก้ไข</button>
+                <button class="btn btn-ghost" type="button" onclick="closeEditModal()">ยกเลิก</button>
+                <span id="employeeEditStatus" class="muted-text"></span>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -146,32 +219,142 @@
             window.location.href = '/login';
         }
 
+        let employeeItems = [];
+
         async function loadEmployees() {
             const res = await fetch('/api/employees');
             if (!res.ok) {
                 return;
             }
             const data = await res.json();
-            const tbody = document.getElementById('employeeTableBody');
-            tbody.innerHTML = '';
-            data.items.forEach(item => {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td>${item.username || ''}</td>
-                    <td>${item.area_code || ''}</td>
-                    <td>${item.first_name || ''}</td>
-                    <td>${item.last_name || ''}</td>
-                    <td>${item.team || ''}</td>
-                    <td>${item.territory || ''}</td>
-                    <td>${item.nickname || ''}</td>
-                    <td>${item.email || ''}</td>
-                    <td class="table-actions">
-                        <button class="btn btn-ghost" onclick='editEmployee(${JSON.stringify(item)})'>แก้ไข</button>
-                        <button class="btn btn-ghost" onclick="deleteEmployee(${item.id})">ลบ</button>
-                    </td>
-                `;
-                tbody.appendChild(tr);
+            employeeItems = data.items || [];
+            buildTeamFilter(employeeItems);
+            renderEmployeeCards();
+        }
+
+        function buildTeamFilter(items) {
+            const teamSelect = document.getElementById('employeeTeamFilter');
+            if (!teamSelect) return;
+            const teams = Array.from(new Set(items.map(i => i.team).filter(Boolean))).sort();
+            teamSelect.innerHTML = '<option value="">ทุกทีม</option>';
+            teams.forEach(team => teamSelect.add(new Option(team, team)));
+        }
+
+        function renderEmployeeCards() {
+            const grid = document.getElementById('employeeCardGrid');
+            const countEl = document.getElementById('employeeCount');
+            if (!grid) return;
+            const searchValue = document.getElementById('employeeSearch').value.trim().toLowerCase();
+            const teamValue = document.getElementById('employeeTeamFilter').value;
+            grid.innerHTML = '';
+
+            const filtered = employeeItems.filter(item => {
+                const fullName = `${item.first_name || ''} ${item.last_name || ''}`.trim().toLowerCase();
+                const nickname = (item.nickname || '').toLowerCase();
+                const email = (item.email || '').toLowerCase();
+                const username = (item.username || '').toLowerCase();
+                const matchSearch = !searchValue || [fullName, nickname, email, username].some(v => v.includes(searchValue));
+                const matchTeam = !teamValue || item.team === teamValue;
+                return matchSearch && matchTeam;
             });
+
+            if (countEl) countEl.textContent = `ทั้งหมด ${filtered.length} คน`;
+
+            filtered.forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'employee-card';
+                const displayName = `${item.first_name || ''} ${item.last_name || ''}`.trim() || item.username || 'ไม่ระบุชื่อ';
+                const roleLine = item.team || 'ไม่ระบุทีม';
+                const subtitle = item.position || item.territory || '';
+                const initials = displayName.split(' ').filter(Boolean).slice(0, 2).map(word => word[0]).join('').toUpperCase();
+                const avatarText = item.nickname || initials || '👤';
+                const avatarLabel = item.nickname || displayName;
+                const textLength = String(avatarText).length;
+                const avatarFontSize = textLength <= 2 ? '1.2rem' : textLength <= 4 ? '1rem' : '0.85rem';
+                const avatarUrl = item.avatar_url || '';
+                const showImage = Boolean(avatarUrl);
+                card.innerHTML = `
+                    <div class="employee-avatar-frame">
+                        <img class="employee-avatar" src="${avatarUrl}" alt="${displayName}" style="display:${showImage ? 'block' : 'none'};" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
+                        <div class="employee-avatar-fallback" style="display:${showImage ? 'none' : 'flex'};">
+                            <span style="font-size:${avatarFontSize}">${avatarText}</span>
+                        </div>
+                    </div>
+                    <div class="employee-name">${displayName}</div>
+                    <div class="employee-role">${roleLine}</div>
+                    ${subtitle ? `<div class="employee-subtitle">${subtitle}</div>` : ''}
+                    <div class="employee-meta">                        
+                        ${item.email ? `<span class="meta-text">${item.email}</span>` : ''}
+                    </div>
+                    <div class="employee-actions">
+                        <button class="btn btn-ghost" onclick='openEditModal(${JSON.stringify(item)})'>แก้ไข</button>
+                        <button class="btn btn-danger" onclick="deleteEmployee(${item.id})">ลบ</button>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function openEditModal(item) {
+            const modal = document.getElementById('employeeEditModal');
+            if (!modal) return;
+            document.getElementById('empEditId').value = item.id || '';
+            document.getElementById('empEditUsername').value = item.username || '';
+            document.getElementById('empEditPassword').value = '';
+            document.getElementById('empEditAreaCode').value = item.area_code || '';
+            document.getElementById('empEditFirstName').value = item.first_name || '';
+            document.getElementById('empEditLastName').value = item.last_name || '';
+            document.getElementById('empEditTeam').value = item.team || '';
+            document.getElementById('empEditTerritory').value = item.territory || '';
+            document.getElementById('empEditNickname').value = item.nickname || '';
+            document.getElementById('empEditEmail').value = item.email || '';
+            document.getElementById('employeeEditStatus').textContent = '';
+            modal.classList.add('active');
+            modal.setAttribute('aria-hidden', 'false');
+        }
+
+        function closeEditModal() {
+            const modal = document.getElementById('employeeEditModal');
+            if (!modal) return;
+            modal.classList.remove('active');
+            modal.setAttribute('aria-hidden', 'true');
+        }
+
+        async function saveEmployeeModal() {
+            const status = document.getElementById('employeeEditStatus');
+            status.textContent = 'กำลังบันทึก...';
+            const empId = document.getElementById('empEditId').value;
+            if (!empId) {
+                status.textContent = 'ไม่พบรหัสพนักงาน';
+                return;
+            }
+
+            const payload = {
+                username: document.getElementById('empEditUsername').value || null,
+                password: document.getElementById('empEditPassword').value || null,
+                area_code: document.getElementById('empEditAreaCode').value || null,
+                first_name: document.getElementById('empEditFirstName').value || null,
+                last_name: document.getElementById('empEditLastName').value || null,
+                team: document.getElementById('empEditTeam').value || null,
+                territory: document.getElementById('empEditTerritory').value || null,
+                nickname: document.getElementById('empEditNickname').value || null,
+                email: document.getElementById('empEditEmail').value || null
+            };
+
+            const res = await fetch(`/api/employees/${empId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!res.ok) {
+                status.textContent = 'บันทึกไม่สำเร็จ';
+                return;
+            }
+
+            status.textContent = 'บันทึกสำเร็จ';
+            closeEditModal();
+            await loadEmployees();
         }
 
         function resetEmployeeForm() {
@@ -278,6 +461,10 @@
             if (!user) return;
             setupSidebarToggle();
             await loadEmployees();
+            const searchInput = document.getElementById('employeeSearch');
+            const teamSelect = document.getElementById('employeeTeamFilter');
+            if (searchInput) searchInput.addEventListener('input', renderEmployeeCards);
+            if (teamSelect) teamSelect.addEventListener('change', renderEmployeeCards);
         }
 
         init();
