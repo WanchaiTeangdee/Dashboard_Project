@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <title>จัดการข้อมูลพนักงาน</title>
+    <script src="https://code.iconify.design/3/3.1.1/iconify.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Sarabun:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="layout">
+        <aside class="sidebar">
+            <div class="sidebar-brand">
+                <div class="brand-mark"></div>
+                <div class="brand-text">โปลิ ฟาร์ม</div>
+            </div>
+            <div class="sidebar-section">
+                <div class="sidebar-title">เมนูหลัก</div>
+                <a class="nav-item" href="/">
+                    <span class="iconify" data-icon="ant-design:home-outlined"></span>
+                    หน้าแรก
+                </a>
+                <a class="nav-item" href="/dashboard">
+                    <span class="iconify" data-icon="ant-design:dashboard-outlined"></span>
+                    แดชบอร์ด
+                </a>
+                <button class="nav-item" id="settingsToggle" type="button" aria-expanded="true">
+                    <span class="iconify" data-icon="ant-design:setting-outlined"></span>
+                    จัดการข้อมูล
+                    <span class="nav-caret iconify" data-icon="ant-design:down-outlined"></span>
+                </button>
+                <div class="nav-sub" id="settingsMenu">
+                    <a class="nav-sub-item" href="/profile"><span class="iconify" data-icon="ant-design:user-outlined"></span> โปรไฟล์ของฉัน</a>
+                    <a class="nav-sub-item active" href="/employees"><span class="iconify" data-icon="ant-design:team-outlined"></span> จัดการข้อมูลพนักงาน</a>
+                    <a class="nav-sub-item" href="/customers"><span class="iconify" data-icon="ant-design:solution-outlined"></span> จัดการข้อมูลลูกค้า</a>
+                </div>
+                <a class="nav-item" href="/help">
+                    <span class="iconify" data-icon="ant-design:question-circle-outlined"></span>
+                    ศูนย์ช่วยเหลือ
+                </a>
+            </div>
+            <div class="sidebar-footer">
+                <div class="user-badge" id="userBadge"></div>
+                <button class="btn btn-ghost" onclick="logout()">ออกจากระบบ</button>
+            </div>
+        </aside>
+        <main class="page">
+            <div class="top-bar">
+                <div class="user-badge mobile-only" id="userBadgeTop"></div>
+            </div>
+
+            <div class="card section">
+                <h3 class="card-title"><span class="iconify" data-icon="ant-design:team-outlined"></span> จัดการข้อมูลพนักงาน</h3>
+                <p class="muted-text">หน้านี้สำหรับผู้ดูแลระบบในการจัดการข้อมูลพนักงาน</p>
+            </div>
+
+            <div class="card section">
+                <h3 class="card-title"><span class="iconify" data-icon="ant-design:form-outlined"></span> เพิ่มพนักงาน</h3>
+                <div class="grid-form">
+                    <input type="hidden" id="empId" />
+                    <input type="text" id="empUsername" placeholder="Username" />
+                    <input type="password" id="empPassword" placeholder="Password" />
+                    <input type="text" id="empAreaCode" placeholder="รหัสเขต" />
+                    <input type="text" id="empFirstName" placeholder="ผู้แทน (ชื่อ)" />
+                    <input type="text" id="empLastName" placeholder="นามสกุล" />
+                    <input type="text" id="empTeam" placeholder="ทีม" />
+                    <input type="text" id="empTerritory" placeholder="เขต" />
+                    <input type="text" id="empNickname" placeholder="ชื่อเล่น" />
+                    <input type="email" id="empEmail" placeholder="Mail" />
+                </div>
+                <div class="row row-space">
+                    <button class="btn btn-primary" id="employeeSaveBtn" onclick="saveEmployee()">บันทึก</button>
+                    <button class="btn btn-ghost" id="employeeCancelBtn" onclick="resetEmployeeForm()">ยกเลิก</button>
+                    <span id="employeeStatus" class="muted-text"></span>
+                </div>
+            </div>
+
+            <div class="card section">
+                <h3 class="card-title"><span class="iconify" data-icon="ant-design:upload-outlined"></span> นำเข้าไฟล์ Excel (พนักงาน)</h3>
+                <div class="row">
+                    <a class="btn btn-ghost" href="/api/employees/template" download>
+                        <span class="iconify" data-icon="ant-design:download-outlined"></span>
+                        ดาวน์โหลดไฟล์ตัวอย่าง
+                    </a>
+                    <input type="file" id="employeeExcelFile" accept=".xlsx,.xls" />
+                    <button class="btn btn-primary" onclick="uploadEmployeesExcel()">อัปโหลด</button>
+                    <span id="employeeUploadStatus" class="muted-text"></span>
+                </div>
+            </div>
+
+            <div class="card section">
+                <h3 class="card-title"><span class="iconify" data-icon="ant-design:table-outlined"></span> รายการพนักงาน</h3>
+                <div class="table-wrap">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Username</th>
+                                <th>รหัสเขต</th>
+                                <th>ผู้แทน</th>
+                                <th>นามสกุล</th>
+                                <th>ทีม</th>
+                                <th>เขต</th>
+                                <th>ชื่อเล่น</th>
+                                <th>Mail</th>
+                                <th>การจัดการ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="employeeTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        async function loadCurrentUser() {
+            const res = await fetch('/api/me');
+            if (!res.ok) {
+                window.location.href = '/login';
+                return null;
+            }
+            const user = await res.json();
+            const badge = document.getElementById('userBadge');
+            const badgeTop = document.getElementById('userBadgeTop');
+            const label = `${user.username} (${user.role})`;
+            badge.textContent = label;
+            if (badgeTop) badgeTop.textContent = label;
+            return user;
+        }
+
+        function setupSidebarToggle() {
+            const toggle = document.getElementById('settingsToggle');
+            const menu = document.getElementById('settingsMenu');
+            if (!toggle || !menu) return;
+
+            toggle.addEventListener('click', () => {
+                const isOpen = toggle.getAttribute('aria-expanded') === 'true';
+                toggle.setAttribute('aria-expanded', String(!isOpen));
+                menu.classList.toggle('collapsed', isOpen);
+                toggle.classList.toggle('collapsed', isOpen);
+            });
+        }
+
+        async function logout() {
+            await fetch('/api/logout', { method: 'POST' });
+            window.location.href = '/login';
+        }
+
+        async function loadEmployees() {
+            const res = await fetch('/api/employees');
+            if (!res.ok) {
+                return;
+            }
+            const data = await res.json();
+            const tbody = document.getElementById('employeeTableBody');
+            tbody.innerHTML = '';
+            data.items.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${item.username || ''}</td>
+                    <td>${item.area_code || ''}</td>
+                    <td>${item.first_name || ''}</td>
+                    <td>${item.last_name || ''}</td>
+                    <td>${item.team || ''}</td>
+                    <td>${item.territory || ''}</td>
+                    <td>${item.nickname || ''}</td>
+                    <td>${item.email || ''}</td>
+                    <td class="table-actions">
+                        <button class="btn btn-ghost" onclick='editEmployee(${JSON.stringify(item)})'>แก้ไข</button>
+                        <button class="btn btn-ghost" onclick="deleteEmployee(${item.id})">ลบ</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function resetEmployeeForm() {
+            document.getElementById('empId').value = '';
+            document.getElementById('empUsername').value = '';
+            document.getElementById('empPassword').value = '';
+            document.getElementById('empAreaCode').value = '';
+            document.getElementById('empFirstName').value = '';
+            document.getElementById('empLastName').value = '';
+            document.getElementById('empTeam').value = '';
+            document.getElementById('empTerritory').value = '';
+            document.getElementById('empNickname').value = '';
+            document.getElementById('empEmail').value = '';
+            document.getElementById('employeeStatus').textContent = '';
+            document.getElementById('employeeSaveBtn').textContent = 'บันทึก';
+        }
+
+        function editEmployee(item) {
+            document.getElementById('empId').value = item.id || '';
+            document.getElementById('empUsername').value = item.username || '';
+            document.getElementById('empPassword').value = '';
+            document.getElementById('empAreaCode').value = item.area_code || '';
+            document.getElementById('empFirstName').value = item.first_name || '';
+            document.getElementById('empLastName').value = item.last_name || '';
+            document.getElementById('empTeam').value = item.team || '';
+            document.getElementById('empTerritory').value = item.territory || '';
+            document.getElementById('empNickname').value = item.nickname || '';
+            document.getElementById('empEmail').value = item.email || '';
+            document.getElementById('employeeSaveBtn').textContent = 'บันทึกการแก้ไข';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        async function saveEmployee() {
+            const status = document.getElementById('employeeStatus');
+            status.textContent = 'กำลังบันทึก...';
+            const empId = document.getElementById('empId').value;
+            const payload = {
+                username: document.getElementById('empUsername').value || null,
+                password: document.getElementById('empPassword').value || null,
+                area_code: document.getElementById('empAreaCode').value || null,
+                first_name: document.getElementById('empFirstName').value || null,
+                last_name: document.getElementById('empLastName').value || null,
+                team: document.getElementById('empTeam').value || null,
+                territory: document.getElementById('empTerritory').value || null,
+                nickname: document.getElementById('empNickname').value || null,
+                email: document.getElementById('empEmail').value || null
+            };
+
+            const url = empId ? `/api/employees/${empId}` : '/api/employees';
+            const method = empId ? 'PUT' : 'POST';
+            const res = await fetch(url, {
+                method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!res.ok) {
+                status.textContent = 'บันทึกไม่สำเร็จ';
+                return;
+            }
+
+            status.textContent = 'บันทึกสำเร็จ';
+            resetEmployeeForm();
+            await loadEmployees();
+        }
+
+        async function deleteEmployee(id) {
+            if (!confirm('ต้องการลบพนักงานรายนี้หรือไม่?')) return;
+            const res = await fetch(`/api/employees/${id}`, { method: 'DELETE' });
+            if (!res.ok) {
+                alert('ลบไม่สำเร็จ');
+                return;
+            }
+            await loadEmployees();
+        }
+
+        async function uploadEmployeesExcel() {
+            const fileInput = document.getElementById('employeeExcelFile');
+            const status = document.getElementById('employeeUploadStatus');
+            if (!fileInput.files.length) {
+                status.textContent = 'กรุณาเลือกไฟล์ก่อน';
+                return;
+            }
+
+            status.textContent = 'กำลังอัปโหลด...';
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+
+            const res = await fetch('/api/employees/upload', { method: 'POST', body: formData });
+            if (!res.ok) {
+                const err = await res.json();
+                status.textContent = err.detail || 'อัปโหลดไม่สำเร็จ';
+                return;
+            }
+
+            const result = await res.json();
+            status.textContent = `นำเข้า ${result.rows} แถว สำเร็จ`;
+            fileInput.value = '';
+            await loadEmployees();
+        }
+
+        async function init() {
+            const user = await loadCurrentUser();
+            if (!user) return;
+            setupSidebarToggle();
+            await loadEmployees();
+        }
+
+        init();
+    </script>
+</body>
+</html>

@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <title>โปรไฟล์ของฉัน</title>
+    <script src="https://code.iconify.design/3/3.1.1/iconify.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Sarabun:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="layout">
+        <aside class="sidebar">
+            <div class="sidebar-brand">
+                <div class="brand-mark"></div>
+                <div class="brand-text">โปลิ ฟาร์ม</div>
+            </div>
+            <div class="sidebar-section">
+                <div class="sidebar-title">เมนูหลัก</div>
+                <a class="nav-item" href="/">
+                    <span class="iconify" data-icon="ant-design:home-outlined"></span>
+                    หน้าแรก
+                </a>
+                <a class="nav-item" href="/dashboard">
+                    <span class="iconify" data-icon="ant-design:dashboard-outlined"></span>
+                    แดชบอร์ด
+                </a>
+                <button class="nav-item" id="settingsToggle" type="button" aria-expanded="true">
+                    <span class="iconify" data-icon="ant-design:setting-outlined"></span>
+                    จัดการข้อมูล
+                    <span class="nav-caret iconify" data-icon="ant-design:down-outlined"></span>
+                </button>
+                <div class="nav-sub" id="settingsMenu">
+                    <a class="nav-sub-item active" href="/profile"><span class="iconify" data-icon="ant-design:user-outlined"></span> โปรไฟล์ของฉัน</a>
+                    <a class="nav-sub-item admin-only" id="navEmployeeMgmt" href="/employees"><span class="iconify" data-icon="ant-design:team-outlined"></span> จัดการข้อมูลพนักงาน</a>
+                    <a class="nav-sub-item admin-only" id="navCustomerMgmt" href="/customers"><span class="iconify" data-icon="ant-design:solution-outlined"></span> จัดการข้อมูลลูกค้า</a>
+                </div>
+                <a class="nav-item" href="/help">
+                    <span class="iconify" data-icon="ant-design:question-circle-outlined"></span>
+                    ศูนย์ช่วยเหลือ
+                </a>
+            </div>
+            <div class="sidebar-footer">
+                <div class="user-badge" id="userBadge"></div>
+                <button class="btn btn-ghost" onclick="logout()">ออกจากระบบ</button>
+            </div>
+        </aside>
+        <main class="page">
+            <div class="top-bar">
+                <div class="user-badge mobile-only" id="userBadgeTop"></div>
+            </div>
+
+            <div class="card section">
+                <h3 class="card-title"><span class="iconify" data-icon="ant-design:user-outlined"></span> โปรไฟล์ของฉัน</h3>
+                <div class="grid-form">
+                    <input type="text" id="profileUsername" placeholder="ชื่อผู้ใช้" disabled />
+                    <input type="text" id="profileRole" placeholder="สิทธิ์การใช้งาน" disabled />
+                    <input type="text" id="profileFullName" placeholder="ชื่อ-นามสกุล" />
+                    <input type="text" id="profileNickname" placeholder="ชื่อเล่น" />
+                    <input type="email" id="profileEmail" placeholder="อีเมล" />
+                    <input type="text" id="profilePhone" placeholder="เบอร์โทร" />
+                    <input type="text" id="profileTeam" placeholder="ทีม" />
+                    <input type="text" id="profileTerritory" placeholder="เขต" />
+                    <input type="text" id="profilePosition" placeholder="ตำแหน่ง" />
+                </div>
+                <div class="row row-space" id="profileActions">
+                    <button class="btn btn-primary" onclick="saveProfile()">บันทึก</button>
+                    <span id="profileStatus" class="muted-text"></span>
+                </div>
+            </div>
+            <div class="card section" id="teamSection" style="display:none;">
+                <h3 class="card-title"><span class="iconify" data-icon="ant-design:team-outlined"></span> พนักงานทีมเดียวกัน</h3>
+                <p class="muted-text" id="teamLabel"></p>
+                <div class="table-wrap">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>ชื่อ-นามสกุล</th>
+                                <th>ชื่อเล่น</th>
+                                <th>เขต</th>
+                                <th>Email</th>
+                            </tr>
+                        </thead>
+                        <tbody id="teamTableBody"></tbody>
+                    </table>
+                </div>
+                <p class="muted-text" id="teamEmpty" style="display:none;">ยังไม่พบพนักงานในทีมเดียวกัน</p>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        async function loadCurrentUser() {
+            const res = await fetch('/api/me');
+            if (!res.ok) {
+                window.location.href = '/login';
+                return null;
+            }
+            const user = await res.json();
+            const badge = document.getElementById('userBadge');
+            const badgeTop = document.getElementById('userBadgeTop');
+            const label = `${user.username} (${user.role})`;
+            badge.textContent = label;
+            if (badgeTop) badgeTop.textContent = label;
+
+            const usernameInput = document.getElementById('profileUsername');
+            const roleInput = document.getElementById('profileRole');
+            if (usernameInput) usernameInput.value = user.username || '';
+            if (roleInput) roleInput.value = user.role || '';
+
+            const employeeMgmt = document.getElementById('navEmployeeMgmt');
+            const customerMgmt = document.getElementById('navCustomerMgmt');
+            if (user.role !== 'Admin') {
+                if (employeeMgmt) employeeMgmt.style.display = 'none';
+                if (customerMgmt) customerMgmt.style.display = 'none';
+            }
+            return user;
+        }
+
+        function setupSidebarToggle() {
+            const toggle = document.getElementById('settingsToggle');
+            const menu = document.getElementById('settingsMenu');
+            if (!toggle || !menu) return;
+
+            toggle.addEventListener('click', () => {
+                const isOpen = toggle.getAttribute('aria-expanded') === 'true';
+                toggle.setAttribute('aria-expanded', String(!isOpen));
+                menu.classList.toggle('collapsed', isOpen);
+                toggle.classList.toggle('collapsed', isOpen);
+            });
+        }
+
+        async function logout() {
+            await fetch('/api/logout', { method: 'POST' });
+            window.location.href = '/login';
+        }
+
+        async function loadProfile(user) {
+            if (user.role === 'Employee') {
+                const res = await fetch('/api/employee_profile');
+                if (!res.ok) return;
+                const data = await res.json();
+                document.getElementById('profileFullName').value = data.full_name || '';
+                document.getElementById('profileNickname').value = data.nickname || '';
+                document.getElementById('profileEmail').value = data.email || '';
+                document.getElementById('profilePhone').value = '';
+                document.getElementById('profileTeam').value = data.team || '';
+                document.getElementById('profileTerritory').value = data.territory || '';
+                document.getElementById('profilePosition').value = '';
+
+                const fields = [
+                    'profileFullName', 'profileNickname', 'profileEmail',
+                    'profilePhone', 'profileTeam', 'profileTerritory', 'profilePosition'
+                ];
+                fields.forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.disabled = true;
+                });
+
+                const actions = document.getElementById('profileActions');
+                if (actions) actions.style.display = 'none';
+
+                await loadTeamMembers();
+                return;
+            }
+
+            const res = await fetch('/api/profile');
+            if (!res.ok) return;
+            const data = await res.json();
+            document.getElementById('profileFullName').value = data.full_name || '';
+            document.getElementById('profileNickname').value = data.nickname || '';
+            document.getElementById('profileEmail').value = data.email || '';
+            document.getElementById('profilePhone').value = data.phone || '';
+            document.getElementById('profileTeam').value = data.team || '';
+            document.getElementById('profileTerritory').value = data.territory || '';
+            document.getElementById('profilePosition').value = data.position || '';
+        }
+
+        async function loadTeamMembers() {
+            const section = document.getElementById('teamSection');
+            const tbody = document.getElementById('teamTableBody');
+            const label = document.getElementById('teamLabel');
+            const empty = document.getElementById('teamEmpty');
+            if (!section || !tbody) return;
+
+            const res = await fetch('/api/team_members');
+            if (!res.ok) return;
+            const data = await res.json();
+            tbody.innerHTML = '';
+            section.style.display = 'block';
+            if (label) {
+                label.textContent = data.team ? `ทีม: ${data.team}` : 'ยังไม่ได้ระบุทีม';
+            }
+            if (!data.items || !data.items.length) {
+                if (empty) empty.style.display = 'block';
+                return;
+            }
+            if (empty) empty.style.display = 'none';
+
+            data.items.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${item.full_name || ''}</td>
+                    <td>${item.nickname || ''}</td>
+                    <td>${item.territory || ''}</td>
+                    <td>${item.email || ''}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+            section.style.display = 'block';
+        }
+
+        async function saveProfile() {
+            const status = document.getElementById('profileStatus');
+            status.textContent = 'กำลังบันทึก...';
+            const payload = {
+                full_name: document.getElementById('profileFullName').value || null,
+                nickname: document.getElementById('profileNickname').value || null,
+                email: document.getElementById('profileEmail').value || null,
+                phone: document.getElementById('profilePhone').value || null,
+                team: document.getElementById('profileTeam').value || null,
+                territory: document.getElementById('profileTerritory').value || null,
+                position: document.getElementById('profilePosition').value || null
+            };
+
+            const res = await fetch('/api/profile', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!res.ok) {
+                status.textContent = 'บันทึกไม่สำเร็จ';
+                return;
+            }
+
+            status.textContent = 'บันทึกสำเร็จ';
+        }
+
+        async function init() {
+            const user = await loadCurrentUser();
+            if (!user) return;
+            setupSidebarToggle();
+            await loadProfile(user);
+        }
+
+        init();
+    </script>
+</body>
+</html>

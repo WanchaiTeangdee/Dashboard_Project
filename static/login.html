@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <title>Login - Sales Dashboard</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="login-page">
+        <div class="login-card">
+            <h2 class="login-title">เข้าสู่ระบบ</h2>
+            <div class="grid-form">
+                <input type="text" id="username" placeholder="Username" />
+                <input type="password" id="password" placeholder="Password" />
+            </div>
+            <div class="login-actions">
+                <button class="btn btn-primary" onclick="login()">เข้าสู่ระบบ</button>
+            </div>
+            <div id="loginStatus" class="muted-text" style="margin-top:10px;"></div>
+        </div>
+    </div>
+
+    <script>
+        async function login() {
+            const status = document.getElementById('loginStatus');
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
+
+            if (!username || !password) {
+                status.textContent = 'กรุณากรอกชื่อผู้ใช้และรหัสผ่าน';
+                return;
+            }
+
+            status.textContent = 'กำลังเข้าสู่ระบบ...';
+            const res = await fetch('/api/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+
+            if (!res.ok) {
+                status.textContent = 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง';
+                return;
+            }
+
+            window.location.href = '/';
+        }
+    </script>
+</body>
+</html>

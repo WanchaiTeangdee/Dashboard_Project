@@ -18,33 +18,69 @@ def _process_dataframe(df):
         'ชือพนักงาน': 'ชื่อพนักงาน',
         '% ส่วนลด': '%ส่วนลด',
         '% ลดท้ายบิล': '%ลดท้ายบิล',
-        'รายละเอีย ด': 'รายละเอียด'
+        'รายละเอีย ด': 'รายละเอียด',
+        'ส่วนลด %': 'ส่วนลด%',
+        'ส่วนลด % ': 'ส่วนลด%',
+        'ส่วนลด %/': 'ส่วนลด%'
     }
     df = df.rename(columns=alias_mapping)
 
     # 2. RENAME: เปลี่ยนชื่อคอลัมน์
     column_mapping = {
         'วันที่/เดือน/ปี เอกสาร': 'document_date',
+        'DATE': 'document_date',
+        'DATEDOC': 'document_date',
+        'Duc': 'document_date',
         'เลขที่บิล': 'invoice_no',
+        'INV': 'invoice_no',
+        'DOCNO': 'invoice_no',
         'รหัสลูกค้า': 'customer_code',
+        'รหัสลูกค้า.1': 'customer_code',
+        'ACCID': 'customer_code',
         'ชื่อลูกค้า': 'customer_name',
+        'XCOMP': 'customer_name',
         'จังหวัด': 'province',
         'รหัสพนักงานขาย': 'sales_rep_code',
+        'รหัสผู้แทน': 'sales_rep_code',
+        'ID': 'sales_rep_code',
+        'ID_EM': 'sales_rep_code',
         'ชื่อพนักงาน': 'sales_rep_name',
+        'ผู้แทน': 'sales_rep_name',
+        'SNAME': 'sales_rep_name',
         'ทีม': 'sales_team',
+        'TEAM': 'sales_team',
+        'TEAMID': 'sales_team',
+        'TEAMDESC': 'sales_team',
         'รหัสสินค้า': 'product_code',
         'กลุ่มสินค้า': 'product_group',
         'รายละเอียด': 'product_name',
-        'จำนวน': 'quantity', 
+        'ชื่อสินค้า': 'product_name',
+        'XDESC': 'product_name',
+        'จำนวน': 'quantity',
+        'จน': 'quantity',
+        'QUAN': 'quantity',
         'หน่วยนับ': 'unit_of_measure',
+        'UNIT': 'unit_of_measure',
         '@': 'unit_price',
+        'ราคาต่อหน่วย': 'unit_price',
+        'PRICE': 'unit_price',
         '%ส่วนลด': 'discount_percent',
+        'ส่วนลด%': 'discount_percent',
+        'DISCL': 'discount_percent',
         '%ลดท้ายบิล': 'bill_discount_percent',
+        'DISCD': 'bill_discount_percent',
         'หน่วยละ NON VAT': 'unit_price_non_vat',
-        'รวมเงิน NON VAT': 'total_amount_non_vat'
+        'รวมเงิน NON VAT': 'total_amount_non_vat',
+        'INVAMT': 'total_amount_non_vat',
+        'XNET': 'total_amount_non_vat',
+        'ราคารวมvat': 'total_amount_non_vat',
+        'VPRICE': 'total_amount_non_vat'
     }
 
     df = df.rename(columns=column_mapping)
+
+    # กันคอลัมน์ซ้ำหลัง rename
+    df = df.loc[:, ~df.columns.duplicated()]
 
     # เลือกเฉพาะคอลัมน์ที่รู้จัก
     valid_cols = list(column_mapping.values())
@@ -87,7 +123,10 @@ def process_excel_file(file_path):
     
     try:
         # 1. อ่าน Excel
-        df = pd.read_excel(file_path)
+        xl = pd.ExcelFile(file_path)
+        preferred_sheets = ["DATA ปรับเขต", "DATA FULL", "2025", "2024"]
+        sheet = next((s for s in preferred_sheets if s in xl.sheet_names), xl.sheet_names[0])
+        df = xl.parse(sheet)
         success, _ = _process_dataframe(df)
         return success
 
@@ -97,7 +136,10 @@ def process_excel_file(file_path):
 
 def process_excel_bytes(file_bytes):
     try:
-        df = pd.read_excel(BytesIO(file_bytes))
+        xl = pd.ExcelFile(BytesIO(file_bytes))
+        preferred_sheets = ["DATA ปรับเขต", "DATA FULL", "2025", "2024"]
+        sheet = next((s for s in preferred_sheets if s in xl.sheet_names), xl.sheet_names[0])
+        df = xl.parse(sheet)
         success, rows = _process_dataframe(df)
         return {"success": success, "rows": rows}
     except Exception as e:

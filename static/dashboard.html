@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <title>แดชบอร์ด - ยอดขาย</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://code.iconify.design/3/3.1.1/iconify.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Sarabun:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="layout">
+        <aside class="sidebar">
+            <div class="sidebar-brand">
+                <div class="brand-mark"></div>
+                <div class="brand-text">โปลิ ฟาร์ม</div>
+            </div>
+            <div class="sidebar-section">
+                <div class="sidebar-title">เมนูหลัก</div>
+                <a class="nav-item" href="/">
+                    <span class="iconify" data-icon="ant-design:home-outlined"></span>
+                    หน้าแรก
+                </a>
+                <a class="nav-item active" href="/dashboard">
+                    <span class="iconify" data-icon="ant-design:dashboard-outlined"></span>
+                    แดชบอร์ด
+                </a>
+                <button class="nav-item" id="settingsToggle" type="button" aria-expanded="true">
+                    <span class="iconify" data-icon="ant-design:setting-outlined"></span>
+                    จัดการข้อมูล
+                    <span class="nav-caret iconify" data-icon="ant-design:down-outlined"></span>
+                </button>
+                <div class="nav-sub" id="settingsMenu">
+                    <a class="nav-sub-item" href="/profile"><span class="iconify" data-icon="ant-design:user-outlined"></span> โปรไฟล์ของฉัน</a>
+                    <a class="nav-sub-item admin-only" id="navEmployeeMgmt" href="/employees"><span class="iconify" data-icon="ant-design:team-outlined"></span> จัดการข้อมูลพนักงาน</a>
+                    <a class="nav-sub-item admin-only" id="navCustomerMgmt" href="/customers"><span class="iconify" data-icon="ant-design:solution-outlined"></span> จัดการข้อมูลลูกค้า</a>
+                </div>
+                <a class="nav-item" href="/help">
+                    <span class="iconify" data-icon="ant-design:question-circle-outlined"></span>
+                    ศูนย์ช่วยเหลือ
+                </a>
+            </div>
+            <!-- <div class="sidebar-section">
+                <div class="sidebar-title">ทีม</div>
+                <div class="team-item active"><span class="team-dot">F</span> การเงิน</div>
+                <div class="team-item"><span class="team-dot team-dot-orange">P</span> ผลิตภัณฑ์</div>
+            </div> -->
+            <div class="sidebar-footer">
+                <div class="user-badge" id="userBadge"></div>
+                <button class="btn btn-ghost" onclick="logout()">ออกจากระบบ</button>
+            </div>
+        </aside>
+        <main class="page">
+            <div class="top-bar">
+                <div class="user-badge mobile-only" id="userBadgeTop"></div>
+            </div>
+
+            <section id="dashboardSection" class="dashboard-section">
+                <div class="card section" id="uploadSection">
+                    <h3 class="card-title"><span class="iconify" data-icon="ant-design:upload-outlined"></span> นำเข้าไฟล์ Excel</h3>
+                    <div class="row">
+                        <a class="btn btn-ghost" href="/api/template" download>
+                            <span class="iconify" data-icon="ant-design:download-outlined"></span>
+                            ดาวน์โหลดไฟล์ตัวอย่าง
+                        </a>
+                        <input type="file" id="excelFile" accept=".xlsx,.xls" />
+                        <button class="btn btn-primary" onclick="uploadExcel()">อัปโหลด</button>
+                        <span id="uploadStatus" class="muted-text"></span>
+                    </div>
+                </div>
+
+                <div class="filter-bar">
+                    <h3 class="filter-title"><span class="iconify" data-icon="ant-design:filter-outlined"></span> ตัวกรอง</h3>
+                    <select id="selYear"></select>
+                    <select id="selMonth">
+                        <option value="All">ทุกเดือน</option>
+                        <option value="1">มกราคม</option>
+                        <option value="2">กุมภาพันธ์</option>
+                        <option value="3">มีนาคม</option>
+                        <option value="4">เมษายน</option>
+                        <option value="5">พฤษภาคม</option>
+                        <option value="6">มิถุนายน</option>
+                        <option value="7">กรกฎาคม</option>
+                        <option value="8">สิงหาคม</option>
+                        <option value="9">กันยายน</option>
+                        <option value="10">ตุลาคม</option>
+                        <option value="11">พฤศจิกายน</option>
+                        <option value="12">ธันวาคม</option>
+                    </select>
+                    <select id="selRegion"><option value="All">ทุกภาค</option></select>
+                    <select id="selProvince"><option value="All">ทุกจังหวัด</option></select>
+                    <select id="selTeam"><option value="All">ทุกทีม</option></select>
+                    <select id="selRep"><option value="All">พนักงานทุกคน</option></select>
+                    <button class="btn btn-primary" onclick="updateDashboard()">กดดูข้อมูล</button>
+                </div>
+
+                <div class="kpi-grid">
+                    <div class="kpi-card">
+                        <div class="kpi-title"><span class="iconify" data-icon="ant-design:flag-outlined"></span> ยอด Target ปี</div>
+                        <div class="kpi-value" id="kpi-sales-target">0</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-title"><span class="iconify" data-icon="ant-design:line-chart-outlined"></span> ยอดขายสะสม (YTD)</div>
+                        <div class="kpi-value" id="kpi-sales-accum">0</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-title"><span class="iconify" data-icon="ant-design:calendar-outlined"></span> ยอดขายเดือนที่เลือก</div>
+                        <div class="kpi-value" id="kpi-sales-period">0</div>
+                    </div>
+                </div>
+
+                <div class="chart-row">
+                    <div class="card">
+                        <h3 class="card-title"><span class="iconify" data-icon="ant-design:trophy-outlined"></span> 10 อันดับสินค้าขายดี</h3>
+                        <canvas id="topProductChart"></canvas>
+                    </div>
+                    <div class="card">
+                        <h3 class="card-title"><span class="iconify" data-icon="ant-design:team-outlined"></span> 10 อันดับลูกค้าสูงสุด</h3>
+                        <canvas id="topCustomerChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-row">
+                    <div class="card">
+                        <h3 class="card-title"><span class="iconify" data-icon="ant-design:pie-chart-outlined"></span> สัดส่วนการขายแยกจังหวัด (เดือนที่เลือก)</h3>
+                        <canvas id="provincePieChart"></canvas>
+                    </div>
+                    <div class="card">
+                        <h3 class="card-title"><span class="iconify" data-icon="ant-design:pie-chart-outlined"></span> สัดส่วนการขายแยกจังหวัด (YTD)</h3>
+                        <canvas id="provincePieYtdChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="card section">
+                    <h3 class="card-title"><span class="iconify" data-icon="ant-design:bar-chart-outlined"></span> เปรียบเทียบยอดขายรายปี (Current vs Previous)</h3>
+                    <canvas id="compareChart" height="80"></canvas>
+                </div>
+
+                <div class="card section">
+                    <h3 class="card-title"><span class="iconify" data-icon="ant-design:table-outlined"></span> PLP Sale Report</h3>
+                    <div class="table-wrap">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>กลุ่มสินค้า (PLP)</th>
+                                    <th>ยอดขาย</th>
+                                    <th>จำนวน</th>
+                                </tr>
+                            </thead>
+                            <tbody id="plpTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        let compareChart, topProductChart, topCustomerChart, provincePieChart, provincePieYtdChart;
+        const fmt = new Intl.NumberFormat('th-TH', { style: 'currency', currency: 'THB' });
+
+        function buildProvinceOptions(selectEl, provincesByRegion, includeAllLabel) {
+            selectEl.innerHTML = '';
+            if (includeAllLabel) {
+                selectEl.add(new Option(includeAllLabel, 'All'));
+            } else {
+                selectEl.add(new Option('เลือกจังหวัด', ''));
+            }
+
+            Object.keys(provincesByRegion).forEach(region => {
+                const group = document.createElement('optgroup');
+                group.label = region;
+                provincesByRegion[region].forEach(p => {
+                    group.appendChild(new Option(p, p));
+                });
+                selectEl.appendChild(group);
+            });
+        }
+
+        function updateProvinceByRegion(regionSelect, provinceSelect, provincesByRegion, includeAllLabel) {
+            const region = regionSelect.value;
+            if (!region || region === 'All') {
+                buildProvinceOptions(provinceSelect, provincesByRegion, includeAllLabel);
+                return;
+            }
+            provinceSelect.innerHTML = '';
+            if (includeAllLabel) {
+                provinceSelect.add(new Option(includeAllLabel, 'All'));
+            } else {
+                provinceSelect.add(new Option('เลือกจังหวัด', ''));
+            }
+            (provincesByRegion[region] || []).forEach(p => {
+                provinceSelect.add(new Option(p, p));
+            });
+        }
+
+        async function loadOptions() {
+            const res = await fetch('/api/options');
+            const opts = await res.json();
+
+            const selYear = document.getElementById('selYear');
+            const selTeam = document.getElementById('selTeam');
+            const selRep = document.getElementById('selRep');
+            const selRegion = document.getElementById('selRegion');
+            const selProvince = document.getElementById('selProvince');
+
+            selYear.innerHTML = '';
+            selTeam.innerHTML = '<option value="All">ทุกทีม</option>';
+            selRep.innerHTML = '<option value="All">พนักงานทุกคน</option>';
+            selRegion.innerHTML = '<option value="All">ทุกภาค</option>';
+
+            opts.years.forEach(y => selYear.add(new Option(y, y)));
+            opts.teams.forEach(t => selTeam.add(new Option(t, t)));
+            opts.reps.forEach(r => selRep.add(new Option(r, r)));
+            (opts.regions || []).forEach(r => selRegion.add(new Option(r, r)));
+
+            buildProvinceOptions(selProvince, opts.provinces_by_region, 'ทุกจังหวัด');
+            selRegion.onchange = () => updateProvinceByRegion(selRegion, selProvince, opts.provinces_by_region, 'ทุกจังหวัด');
+        }
+
+        async function loadCurrentUser() {
+            const res = await fetch('/api/me');
+            if (!res.ok) {
+                window.location.href = '/login';
+                return null;
+            }
+            const user = await res.json();
+            const badge = document.getElementById('userBadge');
+            const badgeTop = document.getElementById('userBadgeTop');
+            const label = `${user.username} (${user.role})`;
+            badge.textContent = label;
+            if (badgeTop) badgeTop.textContent = label;
+
+            const employeeMgmt = document.getElementById('navEmployeeMgmt');
+            const customerMgmt = document.getElementById('navCustomerMgmt');
+            if (user.role !== 'Admin') {
+                const uploadSection = document.getElementById('uploadSection');
+                if (uploadSection) uploadSection.style.display = 'none';
+                if (employeeMgmt) employeeMgmt.style.display = 'none';
+                if (customerMgmt) customerMgmt.style.display = 'none';
+            }
+            return user;
+        }
+
+        function setupSidebarToggle() {
+            const toggle = document.getElementById('settingsToggle');
+            const menu = document.getElementById('settingsMenu');
+            if (!toggle || !menu) return;
+
+            toggle.addEventListener('click', () => {
+                const isOpen = toggle.getAttribute('aria-expanded') === 'true';
+                toggle.setAttribute('aria-expanded', String(!isOpen));
+                menu.classList.toggle('collapsed', isOpen);
+                toggle.classList.toggle('collapsed', isOpen);
+            });
+        }
+
+        async function init() {
+            const user = await loadCurrentUser();
+            if (!user) return;
+            setupSidebarToggle();
+            await loadOptions();
+            updateDashboard();
+        }
+
+        async function updateDashboard() {
+            const year = document.getElementById('selYear').value;
+            const month = document.getElementById('selMonth').value;
+            const region = document.getElementById('selRegion').value;
+            const province = document.getElementById('selProvince').value;
+            const team = document.getElementById('selTeam').value;
+            const rep = document.getElementById('selRep').value;
+
+            const q = `?year=${year}&month=${month}&region=${region}&province=${province}&team=${team}&rep=${rep}`;
+
+            const kpi = await (await fetch(`/api/kpi${q}`)).json();
+            document.getElementById('kpi-sales-target').innerText = fmt.format(kpi.sales_target_year || 0);
+            document.getElementById('kpi-sales-period').innerText = fmt.format(kpi.sales_period);
+            document.getElementById('kpi-sales-accum').innerText = fmt.format(kpi.sales_accum);
+
+            const compData = await (await fetch(`/api/compare_year${q}`)).json();
+            renderCompareChart(compData, year);
+
+            const rankData = await (await fetch(`/api/ranking${q}`)).json();
+            renderRankingCharts(rankData);
+
+            const provinceData = await (await fetch(`/api/sales_by_province${q}`)).json();
+            renderProvincePieChart(provinceData, 'provincePieChart');
+
+            const provinceYtdData = await (await fetch(`/api/sales_by_province_ytd${q}`)).json();
+            renderProvincePieChart(provinceYtdData, 'provincePieYtdChart');
+
+            const plpData = await (await fetch(`/api/plp_report${q}`)).json();
+            renderPlpTable(plpData);
+        }
+
+        async function uploadExcel() {
+            const fileInput = document.getElementById('excelFile');
+            const status = document.getElementById('uploadStatus');
+            if (!fileInput.files.length) {
+                status.textContent = 'กรุณาเลือกไฟล์ก่อน';
+                return;
+            }
+
+            status.textContent = 'กำลังอัปโหลด...';
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+
+            const res = await fetch('/api/upload_excel', { method: 'POST', body: formData });
+            if (!res.ok) {
+                const err = await res.json();
+                status.textContent = err.detail || 'อัปโหลดไม่สำเร็จ';
+                return;
+            }
+
+            const result = await res.json();
+            status.textContent = `นำเข้า ${result.rows} แถว สำเร็จ`;
+            await loadOptions();
+            updateDashboard();
+        }
+
+        async function logout() {
+            await fetch('/api/logout', { method: 'POST' });
+            window.location.href = '/login';
+        }
+
+        function renderCompareChart(data, year) {
+            const ctx = document.getElementById('compareChart').getContext('2d');
+            if (compareChart) compareChart.destroy();
+
+            compareChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.labels,
+                    datasets: [
+                        {
+                            label: `ปี ${year}`,
+                            data: data.current_year,
+                            borderColor: '#3498db',
+                            backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                            fill: true,
+                            tension: 0.4
+                        },
+                        {
+                            label: `ปี ${year - 1}`,
+                            data: data.prev_year,
+                            borderColor: '#95a5a6',
+                            borderDash: [5, 5],
+                            tension: 0.4
+                        }
+                    ]
+                },
+                options: { responsive: true, interaction: { mode: 'index', intersect: false } }
+            });
+        }
+
+        function renderRankingCharts(data) {
+            const ctxP = document.getElementById('topProductChart').getContext('2d');
+            if (topProductChart) topProductChart.destroy();
+            topProductChart = new Chart(ctxP, {
+                type: 'bar',
+                data: {
+                    labels: data.products.map(d => d.label.substring(0, 15) + '...'),
+                    datasets: [{ label: 'ยอดขาย', data: data.products.map(d => d.value), backgroundColor: '#e67e22' }]
+                },
+                options: { indexAxis: 'y' }
+            });
+
+            const ctxC = document.getElementById('topCustomerChart').getContext('2d');
+            if (topCustomerChart) topCustomerChart.destroy();
+            topCustomerChart = new Chart(ctxC, {
+                type: 'bar',
+                data: {
+                    labels: data.customers.map(d => d.label.substring(0, 15) + '...'),
+                    datasets: [{ label: 'ยอดขาย', data: data.customers.map(d => d.value), backgroundColor: '#2ecc71' }]
+                },
+                options: { indexAxis: 'y' }
+            });
+        }
+
+        function renderProvincePieChart(data, canvasId) {
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            const chartRef = canvasId === 'provincePieChart' ? provincePieChart : provincePieYtdChart;
+            if (chartRef) chartRef.destroy();
+
+            const chart = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: data.items.map(d => d.label),
+                    datasets: [{
+                        data: data.items.map(d => d.value),
+                        backgroundColor: [
+                            '#60a5fa', '#34d399', '#fbbf24', '#f87171', '#a78bfa',
+                            '#fb7185', '#22d3ee', '#f97316', '#4ade80', '#f472b6',
+                            '#94a3b8'
+                        ]
+                    }]
+                },
+                options: {
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: (ctx) => {
+                                    const label = ctx.label || '';
+                                    const value = ctx.raw || 0;
+                                    return `${label}: ${fmt.format(value)}`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            if (canvasId === 'provincePieChart') {
+                provincePieChart = chart;
+            } else {
+                provincePieYtdChart = chart;
+            }
+        }
+
+        function renderPlpTable(data) {
+            const tbody = document.getElementById('plpTableBody');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+            (data.items || []).forEach(item => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${item.plp || ''}</td>
+                    <td>${fmt.format(item.sales || 0)}</td>
+                    <td>${(item.quantity ?? 0).toLocaleString('th-TH')}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        init();
+    </script>
+</body>
+</html>
