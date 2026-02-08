@@ -814,13 +814,14 @@ input[type="file"] {
     }
 
     .sidebar {
-        position: sticky;
-        top: 0;
+        position: relative;
+        top: auto;
         z-index: 10;
         flex-direction: row;
         flex-wrap: wrap;
         align-items: center;
         justify-content: space-between;
+        height: auto;
     }
 
     .sidebar-section {
@@ -834,5 +835,87 @@ input[type="file"] {
 
     .mobile-only {
         display: inline-flex;
+    }
+}
+
+@media (max-width: 768px) {
+    .page {
+        padding: 18px 14px;
+    }
+
+    .card {
+        padding: 16px;
+    }
+
+    .grid-form {
+        grid-template-columns: 1fr;
+    }
+
+    .filter-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .employee-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .employee-search {
+        min-width: 0;
+        width: 100%;
+    }
+
+    #employeeTeamFilter {
+        width: 100%;
+    }
+
+    .employee-count {
+        margin-left: 0;
+        align-self: flex-end;
+    }
+
+    .row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .row .btn,
+    .row input[type="file"],
+    .row select,
+    .row a.btn {
+        width: 100%;
+    }
+
+    .employee-actions {
+        flex-direction: column;
+        width: 100%;
+    }
+
+    .employee-actions .btn {
+        width: 100%;
+    }
+}
+
+@media (max-width: 520px) {
+    .sidebar {
+        padding: 14px 12px;
+        gap: 10px;
+    }
+
+    .brand-text {
+        font-size: 0.95rem;
+    }
+
+    .user-badge {
+        font-size: 0.82rem;
+        padding: 4px 10px;
+    }
+
+    .employee-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .modal-card {
+        padding: 16px;
     }
 }
