@@ -1349,6 +1349,11 @@ def get_team_members(user=Depends(get_current_user)):
 def serve_index():
     return RedirectResponse(url="/login")
 
+@app.get("/index")
+def serve_index_page(user=Depends(get_current_user)):
+    index_path = Path(__file__).parent / "static" / "index.html"
+    return FileResponse(index_path)
+
 @app.get("/dashboard")
 def serve_dashboard(user=Depends(get_current_user)):
     dashboard_path = Path(__file__).parent / "static" / "dashboard.html"
