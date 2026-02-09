@@ -1344,11 +1344,8 @@ def get_team_members(user=Depends(get_current_user)):
     return {"team": team_name, "items": items}
 
 @app.get("/")
-def serve_index(user=Depends(get_current_user_optional)):
-    if not user:
-        return RedirectResponse(url="/login")
-    index_path = Path(__file__).parent / "static" / "index.html"
-    return FileResponse(index_path)
+def serve_index():
+    return RedirectResponse(url="/login")
 
 @app.get("/dashboard")
 def serve_dashboard(user=Depends(get_current_user)):
