@@ -3,6 +3,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import StreamingResponse, FileResponse, JSONResponse, RedirectResponse
 from sqlalchemy import create_engine, text
 from urllib.parse import quote_plus
+import os
 from typing import Optional
 from pydantic import BaseModel
 from datetime import datetime
@@ -22,7 +23,7 @@ from etl_engine import process_excel_bytes
 app = FastAPI()
 
 # --- SESSION CONFIG ---
-SECRET_KEY = "change-this-secret"  # <-- เปลี่ยนค่าให้ยาวและเดายาก
+SECRET_KEY = os.getenv("SECRET_KEY", "change-this-secret")  # <-- เปลี่ยนค่าให้ยาวและเดายาก
 app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY, same_site="lax")
 
 # --- AUTH CONFIG ---
@@ -60,7 +61,8 @@ def require_admin(user=Depends(get_current_user)):
 
 # --- CONFIG ---
 db_password = quote_plus("teezaza123") # <--- 🔑 แก้รหัสผ่านของคุณ
-DB_CONNECTION_STR = f'postgresql://postgres:{db_password}@localhost:5432/safety_db'
+default_db_url = f'postgresql://postgres:{db_password}@localhost:5432/safety_db'
+DB_CONNECTION_STR = os.getenv("DATABASE_URL", default_db_url)
 engine = create_engine(DB_CONNECTION_STR)
 
 def init_employee_table():
