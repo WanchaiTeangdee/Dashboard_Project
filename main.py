@@ -6,6 +6,7 @@ from urllib.parse import quote_plus
 from typing import Optional
 from pydantic import BaseModel
 from datetime import datetime
+import uuid
 from io import BytesIO
 import pandas as pd
 from openpyxl.utils import get_column_letter
@@ -102,6 +103,55 @@ def init_customer_table():
 
 init_customer_table()
 
+def init_sales_transactions_table():
+    create_sql = """
+        CREATE TABLE IF NOT EXISTS sales_transactions (
+            document_date DATE,
+            invoice_no VARCHAR(120),
+            customer_code VARCHAR(120),
+            customer_name VARCHAR(200),
+            province VARCHAR(120),
+            sales_rep_code VARCHAR(120),
+            sales_rep_name VARCHAR(200),
+            sales_team VARCHAR(120),
+            product_code VARCHAR(120),
+            product_group VARCHAR(120),
+            product_name VARCHAR(200),
+            quantity NUMERIC,
+            unit_of_measure VARCHAR(50),
+            unit_price NUMERIC,
+            discount_percent NUMERIC,
+            bill_discount_percent NUMERIC,
+            unit_price_non_vat NUMERIC,
+            total_amount_non_vat NUMERIC,
+            batch_id VARCHAR(64)
+        )
+    """
+    with engine.connect() as conn:
+        conn.execute(text(create_sql))
+        conn.execute(text("ALTER TABLE sales_transactions ADD COLUMN IF NOT EXISTS batch_id VARCHAR(64)"))
+        conn.commit()
+
+init_sales_transactions_table()
+
+def init_update_history_table():
+    create_sql = """
+        CREATE TABLE IF NOT EXISTS update_history (
+            id SERIAL PRIMARY KEY,
+            batch_id VARCHAR(64) UNIQUE,
+            source VARCHAR(50),
+            filename VARCHAR(255),
+            rows_count INTEGER,
+            uploaded_by VARCHAR(120),
+            created_at TIMESTAMP DEFAULT NOW()
+        )
+    """
+    with engine.connect() as conn:
+        conn.execute(text(create_sql))
+        conn.commit()
+
+init_update_history_table()
+
 def init_user_profile_table():
     create_sql = """
         CREATE TABLE IF NOT EXISTS user_profiles (
@@ -162,6 +212,13 @@ TEMPLATE_COLUMNS = [
     'วันที่/เดือน/ปี เอกสาร', 'เลขที่บิล', 'รหัสลูกค้า', 'ชื่อลูกค้า', 'จังหวัด',
     'รหัสพนักงานขาย', 'ชื่อพนักงาน', 'ทีม', 'รหัสสินค้า', 'กลุ่มสินค้า', 'รายละเอียด',
     'จำนวน', 'หน่วยนับ', '@', '%ส่วนลด', '%ลดท้ายบิล', 'หน่วยละ NON VAT', 'รวมเงิน NON VAT'
+]
+
+CUSTOMER_SUMMARY_TEMPLATE_COLUMNS = [
+    'วันที่เอกสาร', 'เดือน', 'ปี', 'เลขที่บิล', 'รหัสลูกค้า/ชื่อลูกค้า', 'รหัสลูกค้า',
+    'ชื่อลูกค้า', 'จังหวัด', 'รหัสพนักงานขาย', 'ชือพนักงาน', 'ทีม', 'รหัสสินค้า',
+    'กลุ่มสินค้า', 'รายละเอียด', 'แถม 24', 'จำนวน', 'หน่วยนับ', '@', '% ส่วนลด',
+    '% ลดท้ายบิล', 'หน่วยละ NON VAT', 'รวมเงิน NON VAT'
 ]
 
 class TransactionIn(BaseModel):
@@ -329,12 +386,57 @@ def get_home_summary(user=Depends(get_current_user)):
         sales_count = conn.execute(text("SELECT COUNT(*) FROM sales_transactions")).scalar() or 0
         customer_count = conn.execute(text("SELECT COUNT(*) FROM customers")).scalar() or 0
         employee_count = conn.execute(text("SELECT COUNT(*) FROM employees")).scalar() or 0
+        latest_update = conn.execute(text("SELECT MAX(created_at) FROM update_history")).scalar()
+        sparkline_rows = conn.execute(text("""
+            SELECT
+                document_date::date AS doc_date,
+                SUM(total_amount_non_vat) AS total_amount,
+                COUNT(DISTINCT COALESCE(customer_code, customer_name)) AS customer_count,
+                COUNT(DISTINCT sales_rep_name) AS rep_count
+            FROM sales_transactions
+            WHERE document_date IS NOT NULL
+            GROUP BY document_date::date
+            ORDER BY document_date::date DESC
+            LIMIT 12
+        """)).fetchall()
+
+    sparkline_rows = list(reversed(sparkline_rows))
+    sparkline_sales = [float(row[1] or 0) for row in sparkline_rows]
+    sparkline_customers = [int(row[2] or 0) for row in sparkline_rows]
+    sparkline_employees = [int(row[3] or 0) for row in sparkline_rows]
 
     return {
         "sales_count": int(sales_count),
         "customer_count": int(customer_count),
-        "employee_count": int(employee_count)
+        "employee_count": int(employee_count),
+        "latest_update": latest_update.isoformat() if latest_update else None,
+        "sparkline_sales": sparkline_sales,
+        "sparkline_customers": sparkline_customers,
+        "sparkline_employees": sparkline_employees
     }
+
+@app.get("/api/home_feed")
+def get_home_feed(user=Depends(get_current_user)):
+    sql = """
+        SELECT document_date, customer_name, customer_code, sales_team, total_amount_non_vat
+        FROM sales_transactions
+        ORDER BY document_date DESC NULLS LAST, invoice_no DESC NULLS LAST
+        LIMIT 10
+    """
+    with engine.connect() as conn:
+        rows = conn.execute(text(sql)).fetchall()
+
+    items = []
+    for row in rows:
+        customer_name = row[1] or row[2] or "(ไม่ระบุลูกค้า)"
+        items.append({
+            "document_date": row[0].isoformat() if row[0] else None,
+            "customer_name": customer_name,
+            "sales_team": row[3] or "-",
+            "total_amount": float(row[4] or 0)
+        })
+
+    return {"items": items}
 
 # 1.0 API ดาวน์โหลดไฟล์ตัวอย่าง
 @app.get("/api/template")
@@ -362,6 +464,21 @@ def download_template(user=Depends(require_admin)):
     }
     return StreamingResponse(output, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers=headers)
 
+@app.get("/api/customer_summary_template")
+def download_customer_summary_template(user=Depends(require_admin)):
+    df = pd.DataFrame(columns=CUSTOMER_SUMMARY_TEMPLATE_COLUMNS)
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine="openpyxl") as writer:
+        df.to_excel(writer, index=False, sheet_name="customer_summary")
+        ws = writer.book["customer_summary"]
+        ws.freeze_panes = "A2"
+    output.seek(0)
+
+    headers = {
+        "Content-Disposition": "attachment; filename=customer_summary_template.xlsx"
+    }
+    return StreamingResponse(output, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers=headers)
+
 # 1.1 API อัปโหลดไฟล์ Excel
 @app.post("/api/upload_excel")
 async def upload_excel(file: UploadFile = File(...), user=Depends(require_admin)):
@@ -369,11 +486,28 @@ async def upload_excel(file: UploadFile = File(...), user=Depends(require_admin)
         raise HTTPException(status_code=400, detail="รองรับเฉพาะไฟล์ Excel (.xlsx, .xls)")
 
     content = await file.read()
-    result = process_excel_bytes(content)
+    batch_id = uuid.uuid4().hex
+    result = process_excel_bytes(content, batch_id=batch_id)
     if not result.get("success"):
         raise HTTPException(status_code=400, detail=result.get("error", "นำเข้าไฟล์ไม่สำเร็จ"))
 
-    return {"success": True, "rows": result.get("rows", 0)}
+    with engine.connect() as conn:
+        conn.execute(
+            text("""
+                INSERT INTO update_history (batch_id, source, filename, rows_count, uploaded_by)
+                VALUES (:batch_id, :source, :filename, :rows_count, :uploaded_by)
+            """),
+            {
+                "batch_id": batch_id,
+                "source": "excel",
+                "filename": file.filename,
+                "rows_count": int(result.get("rows", 0)),
+                "uploaded_by": user.get("username")
+            }
+        )
+        conn.commit()
+
+    return {"success": True, "rows": result.get("rows", 0), "batch_id": batch_id}
 
 # 1.2 API เพิ่มรายการขายแบบกรอกฟอร์ม
 @app.post("/api/add_transaction")
@@ -383,19 +517,20 @@ def add_transaction(payload: TransactionIn, user=Depends(require_admin)):
     except ValueError:
         raise HTTPException(status_code=400, detail="รูปแบบวันที่ต้องเป็น YYYY-MM-DD")
 
+    batch_id = f"manual-{uuid.uuid4().hex}"
     insert_sql = text("""
         INSERT INTO sales_transactions (
             document_date, invoice_no, customer_code, customer_name, province,
             sales_rep_code, sales_rep_name, sales_team,
             product_code, product_group, product_name,
             quantity, unit_of_measure, unit_price, discount_percent, bill_discount_percent,
-            unit_price_non_vat, total_amount_non_vat
+            unit_price_non_vat, total_amount_non_vat, batch_id
         ) VALUES (
             :document_date, :invoice_no, :customer_code, :customer_name, :province,
             :sales_rep_code, :sales_rep_name, :sales_team,
             :product_code, :product_group, :product_name,
             :quantity, :unit_of_measure, :unit_price, :discount_percent, :bill_discount_percent,
-            :unit_price_non_vat, :total_amount_non_vat
+            :unit_price_non_vat, :total_amount_non_vat, :batch_id
         )
     """)
 
@@ -417,14 +552,74 @@ def add_transaction(payload: TransactionIn, user=Depends(require_admin)):
         "discount_percent": payload.discount_percent or 0,
         "bill_discount_percent": payload.bill_discount_percent or 0,
         "unit_price_non_vat": payload.unit_price_non_vat or 0,
-        "total_amount_non_vat": payload.total_amount_non_vat or 0
+        "total_amount_non_vat": payload.total_amount_non_vat or 0,
+        "batch_id": batch_id
     }
 
     with engine.connect() as conn:
         conn.execute(insert_sql, params)
+        conn.execute(
+            text("""
+                INSERT INTO update_history (batch_id, source, filename, rows_count, uploaded_by)
+                VALUES (:batch_id, :source, :filename, :rows_count, :uploaded_by)
+            """),
+            {
+                "batch_id": batch_id,
+                "source": "manual",
+                "filename": None,
+                "rows_count": 1,
+                "uploaded_by": user.get("username")
+            }
+        )
         conn.commit()
 
-    return {"success": True}
+    return {"success": True, "batch_id": batch_id}
+
+@app.get("/api/update_history")
+def get_update_history(user=Depends(require_admin)):
+    sql = """
+        SELECT batch_id, source, filename, rows_count, uploaded_by, created_at
+        FROM update_history
+        ORDER BY created_at DESC
+    """
+    with engine.connect() as conn:
+        rows = conn.execute(text(sql)).fetchall()
+
+    return {
+        "items": [
+            {
+                "batch_id": row[0],
+                "source": row[1],
+                "filename": row[2],
+                "rows_count": int(row[3] or 0),
+                "uploaded_by": row[4],
+                "created_at": row[5].isoformat() if row[5] else None
+            }
+            for row in rows
+        ]
+    }
+
+@app.delete("/api/update_history/{batch_id}")
+def delete_update_history(batch_id: str, user=Depends(require_admin)):
+    with engine.connect() as conn:
+        history_row = conn.execute(
+            text("SELECT 1 FROM update_history WHERE batch_id = :batch_id"),
+            {"batch_id": batch_id}
+        ).fetchone()
+        if not history_row:
+            raise HTTPException(status_code=404, detail="ไม่พบประวัติการอัปเดต")
+
+        deleted_rows = conn.execute(
+            text("DELETE FROM sales_transactions WHERE batch_id = :batch_id"),
+            {"batch_id": batch_id}
+        ).rowcount
+        conn.execute(
+            text("DELETE FROM update_history WHERE batch_id = :batch_id"),
+            {"batch_id": batch_id}
+        )
+        conn.commit()
+
+    return {"success": True, "deleted_rows": int(deleted_rows or 0)}
 
 # 2. API สำหรับ KPI Cards (ยอดขาย & ยอด Shop)
 @app.get("/api/kpi")
@@ -1174,6 +1369,16 @@ def serve_employees(user=Depends(require_admin)):
 def serve_customers(user=Depends(require_admin)):
     customers_path = Path(__file__).parent / "static" / "customers.html"
     return FileResponse(customers_path)
+
+@app.get("/customer-summary")
+def serve_customer_summary(user=Depends(get_current_user)):
+    summary_path = Path(__file__).parent / "static" / "customer_summary.html"
+    return FileResponse(summary_path)
+
+@app.get("/update-history")
+def serve_update_history(user=Depends(require_admin)):
+    history_path = Path(__file__).parent / "static" / "update_history.html"
+    return FileResponse(history_path)
 
 @app.get("/help")
 def serve_help(user=Depends(get_current_user)):

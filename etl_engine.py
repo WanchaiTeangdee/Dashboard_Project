@@ -8,12 +8,13 @@ from io import BytesIO
 db_password = quote_plus("teezaza123") 
 DB_CONNECTION_STR = f'postgresql://postgres:{db_password}@localhost:5432/safety_db'
 
-def _process_dataframe(df):
+def _process_dataframe(df, batch_id=None):
     # CLEAN HEADERS: ตัดช่องว่างหน้า-หลังชื่อคอลัมน์ + ลดช่องว่างซ้ำ
     df.columns = df.columns.str.strip().str.replace(r"\s+", " ", regex=True)
 
     # รองรับชื่อคอลัมน์ที่สะกด/เว้นวรรคไม่ตรง
     alias_mapping = {
+        'วันที่เอกสาร': 'document_date',
         'วันที่/เดือน/ปี': 'วันที่/เดือน/ปี เอกสาร',
         'ชือพนักงาน': 'ชื่อพนักงาน',
         '% ส่วนลด': '%ส่วนลด',
@@ -27,6 +28,7 @@ def _process_dataframe(df):
 
     # 2. RENAME: เปลี่ยนชื่อคอลัมน์
     column_mapping = {
+        'วันที่เอกสาร': 'document_date',
         'วันที่/เดือน/ปี เอกสาร': 'document_date',
         'DATE': 'document_date',
         'DATEDOC': 'document_date',
@@ -34,6 +36,7 @@ def _process_dataframe(df):
         'เลขที่บิล': 'invoice_no',
         'INV': 'invoice_no',
         'DOCNO': 'invoice_no',
+        'รหัสลูกค้า/ชื่อลูกค้า': 'customer_code_name',
         'รหัสลูกค้า': 'customer_code',
         'รหัสลูกค้า.1': 'customer_code',
         'ACCID': 'customer_code',
@@ -82,6 +85,35 @@ def _process_dataframe(df):
     # กันคอลัมน์ซ้ำหลัง rename
     df = df.loc[:, ~df.columns.duplicated()]
 
+    # ใช้รหัส/ชื่อลูกค้าจากคอลัมน์รวม ถ้าคอลัมน์หลักว่าง
+    if 'customer_code_name' in df.columns:
+        def _split_customer_code_name(value):
+            if pd.isna(value):
+                return None, None
+            text_value = str(value).strip()
+            if not text_value:
+                return None, None
+            if ':' in text_value:
+                code, name = text_value.split(':', 1)
+                return code.strip() or None, name.strip() or None
+            return None, text_value
+
+        extracted = df['customer_code_name'].apply(_split_customer_code_name)
+        df['customer_code_from_name'] = extracted.map(lambda x: x[0])
+        df['customer_name_from_name'] = extracted.map(lambda x: x[1])
+
+        if 'customer_code' not in df.columns:
+            df['customer_code'] = df['customer_code_from_name']
+        else:
+            df['customer_code'] = df['customer_code'].fillna(df['customer_code_from_name'])
+
+        if 'customer_name' not in df.columns:
+            df['customer_name'] = df['customer_name_from_name']
+        else:
+            df['customer_name'] = df['customer_name'].fillna(df['customer_name_from_name'])
+
+        df = df.drop(columns=['customer_code_name', 'customer_code_from_name', 'customer_name_from_name'])
+
     # เลือกเฉพาะคอลัมน์ที่รู้จัก
     valid_cols = list(column_mapping.values())
     final_cols = df.columns.intersection(valid_cols)
@@ -107,6 +139,8 @@ def _process_dataframe(df):
             df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
 
     # 4. LOAD TO DATABASE
+    if batch_id:
+        df["batch_id"] = batch_id
     if len(df) > 0:
         engine = create_engine(DB_CONNECTION_STR)
         with engine.connect() as conn:
@@ -134,13 +168,13 @@ def process_excel_file(file_path):
         print(f"❌ Error: {e}")
         return False
 
-def process_excel_bytes(file_bytes):
+def process_excel_bytes(file_bytes, batch_id=None):
     try:
         xl = pd.ExcelFile(BytesIO(file_bytes))
         preferred_sheets = ["DATA ปรับเขต", "DATA FULL", "2025", "2024"]
         sheet = next((s for s in preferred_sheets if s in xl.sheet_names), xl.sheet_names[0])
         df = xl.parse(sheet)
-        success, rows = _process_dataframe(df)
+        success, rows = _process_dataframe(df, batch_id=batch_id)
         return {"success": success, "rows": rows}
     except Exception as e:
         return {"success": False, "rows": 0, "error": str(e)}

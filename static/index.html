@@ -2,6 +2,7 @@
 <html lang="th">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Advanced Sales Dashboard</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://code.iconify.design/3/3.1.1/iconify.min.js"></script>
@@ -14,6 +15,9 @@
             <div class="sidebar-brand">
                 <div class="brand-mark"></div>
                 <div class="brand-text">โปลิ ฟาร์ม</div>
+                <button class="btn btn-ghost sidebar-toggle sidebar-toggle-mini" id="sidebarCollapseToggle" type="button" aria-pressed="false">
+                    <span class="iconify" data-icon="ant-design:menu-outlined"></span>
+                </button>
             </div>
             <div class="sidebar-section">
                 <div class="sidebar-title">เมนูหลัก</div>
@@ -21,24 +25,30 @@
                     <span class="iconify" data-icon="ant-design:home-outlined"></span>
                     หน้าแรก
                 </a>
-                <a class="nav-item" href="/dashboard">
+                <button class="nav-item collapsed" id="dashboardToggle" type="button" aria-expanded="false">
                     <span class="iconify" data-icon="ant-design:dashboard-outlined"></span>
                     แดชบอร์ด
-                </a>
-                <button class="nav-item" id="settingsToggle" type="button" aria-expanded="true">
+                    <span class="nav-caret iconify" data-icon="ant-design:down-outlined"></span>
+                </button>
+                <div class="nav-sub collapsed" id="dashboardMenu">
+                    <a class="nav-sub-item" href="/dashboard"><span class="iconify" data-icon="ant-design:line-chart-outlined"></span> ยอดขาย</a>
+                    <a class="nav-sub-item" href="/customer-summary"><span class="iconify" data-icon="ant-design:profile-outlined"></span> การ์ดลูกค้ารวม</a>
+                    <a class="nav-sub-item admin-only" href="/update-history"><span class="iconify" data-icon="ant-design:history-outlined"></span> ประวัติการอัปเดตข้อมูล</a>
+                </div>
+                <button class="nav-item collapsed" id="settingsToggle" type="button" aria-expanded="false">
                     <span class="iconify" data-icon="ant-design:setting-outlined"></span>
                     จัดการข้อมูล
                     <span class="nav-caret iconify" data-icon="ant-design:down-outlined"></span>
                 </button>
-                <div class="nav-sub" id="settingsMenu">
+                <div class="nav-sub collapsed" id="settingsMenu">
                     <!-- <a class="nav-sub-item" href="/profile"><span class="iconify" data-icon="ant-design:user-outlined"></span> โปรไฟล์ของฉัน</a> -->
                     <a class="nav-sub-item admin-only" id="navEmployeeMgmt" href="/employees"><span class="iconify" data-icon="ant-design:team-outlined"></span> จัดการข้อมูลพนักงาน</a>
                     <a class="nav-sub-item admin-only" id="navCustomerMgmt" href="/customers"><span class="iconify" data-icon="ant-design:solution-outlined"></span> จัดการข้อมูลลูกค้า</a>
                 </div>
-                <a class="nav-item" href="/help">
+                <!-- <a class="nav-item" href="/help">
                     <span class="iconify" data-icon="ant-design:question-circle-outlined"></span>
                     ศูนย์ช่วยเหลือ
-                </a>
+                </a> -->
             </div>
             <!-- <div class="sidebar-section">
                 <div class="sidebar-title">ทีม</div>
@@ -51,30 +61,43 @@
             </div>
         </aside>
         <main class="page">
-            <div class="top-bar">
-                <div class="user-badge mobile-only" id="userBadgeTop"></div>
-            </div>
+            <div class="user-badge mobile-only" id="userBadgeTop"></div>
             <div class="card section">
-                <h3 class="card-title"><span class="iconify" data-icon="ant-design:home-outlined"></span> หน้าแรก</h3>
-                <p class="muted-text">เลือกเมนูด้านซ้ายเพื่อเข้าใช้งาน Dashboard และเมนูจัดการข้อมูล</p>
+                <div class="home-header" id="homeHeaderText">👋 สวัสดี</div>
             </div>
 
             <div class="kpi-grid">
                 <div class="kpi-card">
-                    <div class="kpi-title"><span class="iconify" data-icon="ant-design:profile-outlined"></span> จำนวนข้อมูลยอดขาย</div>
+                    <div class="kpi-title"><span class="iconify" data-icon="ant-design:line-chart-outlined"></span> รายการขาย</div>
                     <div class="kpi-value" id="homeSalesCount">0</div>
+                    <svg class="kpi-sparkline kpi-sparkline-primary" viewBox="0 0 120 32" aria-hidden="true">
+                        <polyline points="0,24 16,20 28,22 44,14 60,16 76,10 92,12 108,6 120,10"></polyline>
+                    </svg>
+                    <div class="kpi-progress" aria-hidden="true">
+                        <div class="kpi-progress-bar" id="homeSalesProgressBar"></div>
+                    </div>
+                    <div class="kpi-progress-meta">
+                        <span id="homeSalesProgressLabel">0% ของเป้า</span>
+                        <span id="homeSalesTarget">เป้า 0</span>
+                    </div>
                 </div>
                 <div class="kpi-card">
-                    <div class="kpi-title"><span class="iconify" data-icon="ant-design:solution-outlined"></span> จำนวนลูกค้า</div>
+                    <div class="kpi-title"><span class="iconify" data-icon="ant-design:team-outlined"></span> ลูกค้าทั้งหมด</div>
                     <div class="kpi-value" id="homeCustomerCount">0</div>
+                    <svg class="kpi-sparkline kpi-sparkline-muted" viewBox="0 0 120 32" aria-hidden="true">
+                        <polyline points="0,22 16,24 28,18 44,20 60,14 76,16 92,10 108,12 120,8"></polyline>
+                    </svg>
                 </div>
                 <div class="kpi-card">
-                    <div class="kpi-title"><span class="iconify" data-icon="ant-design:team-outlined"></span> จำนวนพนักงาน</div>
+                    <div class="kpi-title"><span class="iconify" data-icon="ant-design:user-outlined"></span> พนักงาน</div>
                     <div class="kpi-value" id="homeEmployeeCount">0</div>
+                    <svg class="kpi-sparkline kpi-sparkline-success" viewBox="0 0 120 32" aria-hidden="true">
+                        <polyline points="0,26 16,22 28,24 44,18 60,20 76,14 92,16 108,12 120,14"></polyline>
+                    </svg>
                 </div>
             </div>
 
-            <div class="card section">
+            <!-- <div class="card section">
                 <h3 class="card-title"><span class="iconify" data-icon="ant-design:rocket-outlined"></span> ทางลัด</h3>
                 <div class="shortcut-grid">
                     <a class="btn btn-primary" href="/dashboard">
@@ -94,6 +117,39 @@
                         อัปโหลดไฟล์
                     </a>
                 </div>
+            </div> -->
+
+            <div class="card section">
+                <div class="top-performer">
+                    <div>
+                        <h3 class="card-title"><span class="iconify" data-icon="ant-design:trophy-outlined"></span> พนักงานขายดีเด่นวันนี้</h3>
+                        <div class="top-performer-name" id="topPerformerName">กนกพร สุขใจ</div>
+                        <div class="top-performer-role" id="topPerformerRole">ทีมขาย D3</div>
+                        <div class="top-performer-metric" id="topPerformerSales">ยอดขายวันนี้ 0 บาท</div>
+                    </div>
+                    <div class="top-performer-hero">
+                        <div class="top-performer-avatar" id="topPerformerAvatar">KS</div>
+                        <div class="top-performer-badge">Top Performer</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card section">
+                <h3 class="card-title"><span class="iconify" data-icon="ant-design:unordered-list-outlined"></span> รายการขายล่าสุด (Live Feed)</h3>
+                <div class="table-wrap">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>วันที่</th>
+                                <th>ลูกค้า</th>
+                                <th>ทีมขาย</th>
+                                <th class="amount-cell">ยอดเงิน</th>
+                            </tr>
+                        </thead>
+                        <tbody id="homeFeedBody"></tbody>
+                    </table>
+                </div>
+                <div id="homeFeedStatus" class="muted-text"></div>
             </div>
 
         </main>
@@ -118,6 +174,9 @@
             const shortcutCustomers = document.getElementById('shortcutCustomers');
             const shortcutUpload = document.getElementById('shortcutUpload');
             if (user.role !== 'Admin') {
+                document.querySelectorAll('.admin-only').forEach(el => {
+                    el.style.display = 'none';
+                });
                 if (employeeMgmt) employeeMgmt.style.display = 'none';
                 if (customerMgmt) customerMgmt.style.display = 'none';
                 if (shortcutEmployees) shortcutEmployees.style.display = 'none';
@@ -130,30 +189,189 @@
         function setupSidebarToggle() {
             const toggle = document.getElementById('settingsToggle');
             const menu = document.getElementById('settingsMenu');
-            if (!toggle || !menu) return;
+            if (toggle && menu) {
+                toggle.addEventListener('click', () => {
+                    const isOpen = toggle.getAttribute('aria-expanded') === 'true';
+                    toggle.setAttribute('aria-expanded', String(!isOpen));
+                    menu.classList.toggle('collapsed', isOpen);
+                    toggle.classList.toggle('collapsed', isOpen);
+                });
+            }
 
-            toggle.addEventListener('click', () => {
-                const isOpen = toggle.getAttribute('aria-expanded') === 'true';
-                toggle.setAttribute('aria-expanded', String(!isOpen));
-                menu.classList.toggle('collapsed', isOpen);
-                toggle.classList.toggle('collapsed', isOpen);
-            });
+            const dashboardToggle = document.getElementById('dashboardToggle');
+            const dashboardMenu = document.getElementById('dashboardMenu');
+            if (dashboardToggle && dashboardMenu) {
+                dashboardToggle.addEventListener('click', () => {
+                    const isOpen = dashboardToggle.getAttribute('aria-expanded') === 'true';
+                    dashboardToggle.setAttribute('aria-expanded', String(!isOpen));
+                    dashboardMenu.classList.toggle('collapsed', isOpen);
+                    dashboardToggle.classList.toggle('collapsed', isOpen);
+                });
+            }
+
+            const collapseToggle = document.getElementById('sidebarCollapseToggle');
+            const layout = document.querySelector('.layout');
+            if (collapseToggle && layout) {
+                collapseToggle.addEventListener('click', () => {
+                    const isCollapsed = layout.classList.toggle('sidebar-collapsed');
+                    collapseToggle.setAttribute('aria-pressed', String(isCollapsed));
+                    localStorage.setItem('sidebarCollapsed', String(isCollapsed));
+                });
+            }
+
+            if (layout) {
+                const stored = localStorage.getItem('sidebarCollapsed') === 'true';
+                if (stored) {
+                    layout.classList.add('sidebar-collapsed');
+                    if (collapseToggle) collapseToggle.setAttribute('aria-pressed', 'true');
+                }
+            }
+        }
+
+        const countFmt = new Intl.NumberFormat('th-TH');
+        const moneyFmt = new Intl.NumberFormat('th-TH', { style: 'currency', currency: 'THB' });
+        let currentUser = null;
+
+        function formatThaiDate(value) {
+            if (!value) return '-';
+            const dateObj = new Date(value);
+            if (Number.isNaN(dateObj.getTime())) return '-';
+            return dateObj.toLocaleDateString('th-TH', { day: '2-digit', month: 'short', year: 'numeric' });
+        }
+
+        function setHomeHeader(latestUpdate) {
+            const header = document.getElementById('homeHeaderText');
+            if (!header) return;
+            const userLabel = currentUser?.role || currentUser?.username || 'ผู้ใช้';
+            const todayLabel = formatThaiDate(new Date());
+            const latestLabel = formatThaiDate(latestUpdate);
+            header.textContent = `👋 สวัสดี ${userLabel} | 📅 วันนี้ ${todayLabel} | 🔄 ข้อมูลล่าสุด: ${latestLabel}`;
+        }
+
+        function updateSalesProgress(currentValue, targetValue) {
+            const safeTarget = Number(targetValue) > 0 ? Number(targetValue) : 200000;
+            const safeCurrent = Number(currentValue) > 0 ? Number(currentValue) : 0;
+            const percent = Math.min(100, Math.round((safeCurrent / safeTarget) * 100));
+            const progressBar = document.getElementById('homeSalesProgressBar');
+            const progressLabel = document.getElementById('homeSalesProgressLabel');
+            const progressTarget = document.getElementById('homeSalesTarget');
+            if (progressBar) progressBar.style.width = `${percent}%`;
+            if (progressLabel) progressLabel.textContent = `${percent}% ของเป้า`;
+            if (progressTarget) progressTarget.textContent = `เป้า ${countFmt.format(safeTarget)}`;
+        }
+
+        function buildSparklinePoints(values, width = 120, height = 32, padding = 4) {
+            if (!Array.isArray(values) || values.length === 0) {
+                return `0,${height - padding} ${width},${height - padding}`;
+            }
+            const safeValues = values.map(value => Number(value) || 0);
+            const minValue = Math.min(...safeValues);
+            const maxValue = Math.max(...safeValues);
+            const range = maxValue - minValue || 1;
+            const step = values.length > 1 ? (width - padding * 2) / (values.length - 1) : 0;
+            return safeValues
+                .map((value, index) => {
+                    const x = padding + step * index;
+                    const normalized = (value - minValue) / range;
+                    const y = height - padding - normalized * (height - padding * 2);
+                    return `${Math.round(x)},${Math.round(y)}`;
+                })
+                .join(' ');
+        }
+
+        function updateSparkline(polylineId, values) {
+            const polyline = document.getElementById(polylineId);
+            if (!polyline) return;
+            const points = buildSparklinePoints(values);
+            polyline.setAttribute('points', points);
+        }
+
+        function setTopPerformer(data) {
+            if (!data) return;
+            const name = document.getElementById('topPerformerName');
+            const role = document.getElementById('topPerformerRole');
+            const sales = document.getElementById('topPerformerSales');
+            const avatar = document.getElementById('topPerformerAvatar');
+            if (name && data.name) name.textContent = data.name;
+            if (role && data.team) role.textContent = `ทีมขาย ${data.team}`;
+            if (sales && data.sales_today != null) {
+                sales.textContent = `ยอดขายวันนี้ ${moneyFmt.format(data.sales_today)}`;
+            }
+            if (avatar && data.name) {
+                const initials = data.name
+                    .split(' ')
+                    .filter(Boolean)
+                    .slice(0, 2)
+                    .map(part => part[0])
+                    .join('')
+                    .toUpperCase();
+                avatar.textContent = initials || avatar.textContent;
+            }
+        }
+
+        function renderTeamBadge(team) {
+            if (!team) return '-';
+            const teamLabel = String(team).trim();
+            const key = teamLabel.toUpperCase();
+            let badgeClass = 'team-badge';
+            if (key.includes('D1')) badgeClass += ' team-d1';
+            if (key.includes('D2')) badgeClass += ' team-d2';
+            if (key.includes('D3')) badgeClass += ' team-d3';
+            return `<span class="${badgeClass}">${teamLabel}</span>`;
         }
 
         async function init() {
             const user = await loadCurrentUser();
             if (!user) return;
+            currentUser = user;
             setupSidebarToggle();
             await loadHomeSummary();
+            await loadHomeFeed();
         }
 
         async function loadHomeSummary() {
             const res = await fetch('/api/home_summary');
             if (!res.ok) return;
             const data = await res.json();
-            document.getElementById('homeSalesCount').textContent = data.sales_count ?? 0;
-            document.getElementById('homeCustomerCount').textContent = data.customer_count ?? 0;
-            document.getElementById('homeEmployeeCount').textContent = data.employee_count ?? 0;
+            document.getElementById('homeSalesCount').textContent = countFmt.format(data.sales_count ?? 0);
+            document.getElementById('homeCustomerCount').textContent = countFmt.format(data.customer_count ?? 0);
+            document.getElementById('homeEmployeeCount').textContent = countFmt.format(data.employee_count ?? 0);
+            updateSalesProgress(data.sales_count ?? 0, data.sales_target ?? 200000);
+            updateSparkline('homeSalesSparkline', data.sparkline_sales);
+            updateSparkline('homeCustomerSparkline', data.sparkline_customers);
+            updateSparkline('homeEmployeeSparkline', data.sparkline_employees);
+            if (data.top_performer) setTopPerformer(data.top_performer);
+            setHomeHeader(data.latest_update);
+        }
+
+        async function loadHomeFeed() {
+            const body = document.getElementById('homeFeedBody');
+            const status = document.getElementById('homeFeedStatus');
+            if (!body) return;
+            if (status) status.textContent = 'กำลังโหลด...';
+
+            const res = await fetch('/api/home_feed');
+            if (!res.ok) {
+                if (status) status.textContent = 'โหลดรายการล่าสุดไม่สำเร็จ';
+                return;
+            }
+
+            const data = await res.json();
+            body.innerHTML = '';
+            (data.items || []).forEach(item => {
+                const tr = document.createElement('tr');
+                const dateLabel = item.document_date ? formatThaiDate(item.document_date) : '-';
+                const teamBadge = renderTeamBadge(item.sales_team);
+                tr.innerHTML = `
+                    <td>${dateLabel}</td>
+                    <td>${item.customer_name || '-'}</td>
+                    <td>${teamBadge}</td>
+                    <td class="amount-cell">${moneyFmt.format(item.total_amount || 0)}</td>
+                `;
+                body.appendChild(tr);
+            });
+
+            if (status) status.textContent = data.items && data.items.length ? '' : 'ยังไม่มีรายการขายล่าสุด';
         }
 
         async function logout() {

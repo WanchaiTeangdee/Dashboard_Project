@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ประวัติการอัปเดตข้อมูล</title>
+    <script src="https://code.iconify.design/3/3.1.1/iconify.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Sarabun:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="layout">
+        <aside class="sidebar">
+            <div class="sidebar-brand">
+                <div class="brand-mark"></div>
+                <div class="brand-text">โปลิ ฟาร์ม</div>
+                <button class="btn btn-ghost sidebar-toggle sidebar-toggle-mini" id="sidebarCollapseToggle" type="button" aria-pressed="false">
+                    <span class="iconify" data-icon="ant-design:menu-outlined"></span>
+                </button>
+            </div>
+            <div class="sidebar-section">
+                <div class="sidebar-title">เมนูหลัก</div>
+                <a class="nav-item" href="/">
+                    <span class="iconify" data-icon="ant-design:home-outlined"></span>
+                    หน้าแรก
+                </a>
+                <button class="nav-item active" id="dashboardToggle" type="button" aria-expanded="true">
+                    <span class="iconify" data-icon="ant-design:dashboard-outlined"></span>
+                    แดชบอร์ด
+                    <span class="nav-caret iconify" data-icon="ant-design:down-outlined"></span>
+                </button>
+                <div class="nav-sub" id="dashboardMenu">
+                    <a class="nav-sub-item" href="/dashboard"><span class="iconify" data-icon="ant-design:line-chart-outlined"></span> ยอดขาย</a>
+                    <a class="nav-sub-item" href="/customer-summary"><span class="iconify" data-icon="ant-design:profile-outlined"></span> การ์ดลูกค้ารวม</a>
+                    <a class="nav-sub-item admin-only active" href="/update-history"><span class="iconify" data-icon="ant-design:history-outlined"></span> ประวัติการอัปเดตข้อมูล</a>
+                </div>
+                <button class="nav-item collapsed" id="settingsToggle" type="button" aria-expanded="false">
+                    <span class="iconify" data-icon="ant-design:setting-outlined"></span>
+                    จัดการข้อมูล
+                    <span class="nav-caret iconify" data-icon="ant-design:down-outlined"></span>
+                </button>
+                <div class="nav-sub collapsed" id="settingsMenu">
+                    <!-- <a class="nav-sub-item" href="/profile"><span class="iconify" data-icon="ant-design:user-outlined"></span> โปรไฟล์ของฉัน</a> -->
+                    <a class="nav-sub-item admin-only" id="navEmployeeMgmt" href="/employees"><span class="iconify" data-icon="ant-design:team-outlined"></span> จัดการข้อมูลพนักงาน</a>
+                    <a class="nav-sub-item admin-only" id="navCustomerMgmt" href="/customers"><span class="iconify" data-icon="ant-design:solution-outlined"></span> จัดการข้อมูลลูกค้า</a>
+                </div>
+                <!-- <a class="nav-item" href="/help">
+                    <span class="iconify" data-icon="ant-design:question-circle-outlined"></span>
+                    ศูนย์ช่วยเหลือ
+                </a> -->
+            </div>
+            <div class="sidebar-footer">
+                <div class="user-badge" id="userBadge"></div>
+                <button class="btn btn-ghost" onclick="logout()">ออกจากระบบ</button>
+            </div>
+        </aside>
+        <main class="page">
+            <div class="user-badge mobile-only" id="userBadgeTop"></div>
+
+            <section id="updateHistorySection" class="dashboard-section">
+                <div class="section-heading">ประวัติการอัปเดตข้อมูล</div>
+                <div class="card section">
+                    <h3 class="card-title"><span class="iconify" data-icon="ant-design:history-outlined"></span> ประวัติการอัปเดตข้อมูล</h3>
+                    <div class="table-wrap">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>วันที่</th>
+                                    <th>เวลา</th>
+                                    <th>แหล่งที่มา</th>
+                                    <th>ไฟล์</th>
+                                    <th>จำนวนแถว</th>
+                                    <th>โดย</th>
+                                    <th>การทำงาน</th>
+                                </tr>
+                            </thead>
+                            <tbody id="updateHistoryBody"></tbody>
+                        </table>
+                    </div>
+                    <div id="updateHistoryStatus" class="muted-text"></div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <div class="modal-overlay" id="deleteConfirmModal" aria-hidden="true">
+        <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="deleteConfirmTitle">
+            <div class="modal-header">
+                <div id="deleteConfirmTitle" class="section-heading" style="margin: 0;">ยืนยันการลบข้อมูล</div>
+            </div>
+            <div class="muted-text" style="margin-bottom: 16px;">ต้องการลบข้อมูลทั้งหมดที่อัปเดตในครั้งนี้ใช่หรือไม่?</div>
+            <div class="modal-actions">
+                <button class="btn btn-ghost" type="button" id="deleteConfirmCancel">ยกเลิก</button>
+                <button class="btn btn-danger" type="button" id="deleteConfirmOk">ลบข้อมูล</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function loadCurrentUser() {
+            const res = await fetch('/api/me');
+            if (!res.ok) {
+                window.location.href = '/login';
+                return null;
+            }
+            const user = await res.json();
+            const badge = document.getElementById('userBadge');
+            const badgeTop = document.getElementById('userBadgeTop');
+            const label = `${user.username} (${user.role})`;
+            badge.textContent = label;
+            if (badgeTop) badgeTop.textContent = label;
+
+            const employeeMgmt = document.getElementById('navEmployeeMgmt');
+            const customerMgmt = document.getElementById('navCustomerMgmt');
+            if (user.role !== 'Admin') {
+                document.querySelectorAll('.admin-only').forEach(el => {
+                    el.style.display = 'none';
+                });
+                if (employeeMgmt) employeeMgmt.style.display = 'none';
+                if (customerMgmt) customerMgmt.style.display = 'none';
+            }
+            return user;
+        }
+
+        function setupSidebarToggle() {
+            const toggle = document.getElementById('settingsToggle');
+            const menu = document.getElementById('settingsMenu');
+            if (toggle && menu) {
+                toggle.addEventListener('click', () => {
+                    const isOpen = toggle.getAttribute('aria-expanded') === 'true';
+                    toggle.setAttribute('aria-expanded', String(!isOpen));
+                    menu.classList.toggle('collapsed', isOpen);
+                    toggle.classList.toggle('collapsed', isOpen);
+                });
+            }
+
+            const dashboardToggle = document.getElementById('dashboardToggle');
+            const dashboardMenu = document.getElementById('dashboardMenu');
+            if (dashboardToggle && dashboardMenu) {
+                dashboardToggle.addEventListener('click', () => {
+                    const isOpen = dashboardToggle.getAttribute('aria-expanded') === 'true';
+                    dashboardToggle.setAttribute('aria-expanded', String(!isOpen));
+                    dashboardMenu.classList.toggle('collapsed', isOpen);
+                    dashboardToggle.classList.toggle('collapsed', isOpen);
+                });
+            }
+
+            const collapseToggle = document.getElementById('sidebarCollapseToggle');
+            const layout = document.querySelector('.layout');
+            if (collapseToggle && layout) {
+                collapseToggle.addEventListener('click', () => {
+                    const isCollapsed = layout.classList.toggle('sidebar-collapsed');
+                    collapseToggle.setAttribute('aria-pressed', String(isCollapsed));
+                    localStorage.setItem('sidebarCollapsed', String(isCollapsed));
+                });
+            }
+
+            if (layout) {
+                const stored = localStorage.getItem('sidebarCollapsed') === 'true';
+                if (stored) {
+                    layout.classList.add('sidebar-collapsed');
+                    if (collapseToggle) collapseToggle.setAttribute('aria-pressed', 'true');
+                }
+            }
+        }
+
+        function getUpdateSourceLabel(value) {
+            if (value === 'excel') return 'ไฟล์ Excel';
+            if (value === 'manual') return 'เพิ่มข้อมูล';
+            return value || '-';
+        }
+
+        async function loadUpdateHistory() {
+            const body = document.getElementById('updateHistoryBody');
+            const status = document.getElementById('updateHistoryStatus');
+            if (!body) return;
+            if (status) status.textContent = 'กำลังโหลด...';
+
+            const res = await fetch('/api/update_history');
+            if (!res.ok) {
+                if (status) status.textContent = 'โหลดประวัติไม่สำเร็จ';
+                return;
+            }
+
+            const data = await res.json();
+            renderUpdateHistory(data.items || []);
+            if (status) status.textContent = data.items && data.items.length ? '' : 'ยังไม่มีประวัติการอัปเดต';
+        }
+
+        function renderUpdateHistory(items) {
+            const body = document.getElementById('updateHistoryBody');
+            if (!body) return;
+            body.innerHTML = '';
+
+            items.forEach(item => {
+                const tr = document.createElement('tr');
+                const createdAt = item.created_at ? new Date(item.created_at) : null;
+                const createdDate = createdAt ? createdAt.toLocaleDateString('th-TH') : '-';
+                const createdTime = createdAt ? createdAt.toLocaleTimeString('th-TH') : '-';
+                const filename = item.filename || '-';
+                const rowsCount = typeof item.rows_count === 'number' ? item.rows_count.toLocaleString('th-TH') : '0';
+                const uploader = item.uploaded_by || '-';
+
+                const tdDate = document.createElement('td');
+                tdDate.textContent = createdDate;
+                tr.appendChild(tdDate);
+
+                const tdTime = document.createElement('td');
+                tdTime.textContent = createdTime;
+                tr.appendChild(tdTime);
+
+                const tdSource = document.createElement('td');
+                tdSource.textContent = getUpdateSourceLabel(item.source);
+                tr.appendChild(tdSource);
+
+                const tdFile = document.createElement('td');
+                tdFile.textContent = filename;
+                tr.appendChild(tdFile);
+
+                const tdRows = document.createElement('td');
+                tdRows.textContent = rowsCount;
+                tr.appendChild(tdRows);
+
+                const tdUser = document.createElement('td');
+                tdUser.textContent = uploader;
+                tr.appendChild(tdUser);
+
+                const tdAction = document.createElement('td');
+                const btn = document.createElement('button');
+                btn.className = 'btn btn-danger';
+                btn.type = 'button';
+                btn.textContent = 'ลบชุดนี้';
+                btn.addEventListener('click', () => deleteUpdateHistory(item.batch_id));
+                tdAction.appendChild(btn);
+                tr.appendChild(tdAction);
+
+                body.appendChild(tr);
+            });
+        }
+
+        let pendingDeleteBatchId = null;
+
+        function openDeleteConfirm(batchId) {
+            const modal = document.getElementById('deleteConfirmModal');
+            if (!modal) return;
+            pendingDeleteBatchId = batchId;
+            modal.classList.add('active');
+            modal.setAttribute('aria-hidden', 'false');
+        }
+
+        function closeDeleteConfirm() {
+            const modal = document.getElementById('deleteConfirmModal');
+            if (!modal) return;
+            modal.classList.remove('active');
+            modal.setAttribute('aria-hidden', 'true');
+            pendingDeleteBatchId = null;
+        }
+
+        async function confirmDelete() {
+            if (!pendingDeleteBatchId) return;
+            const res = await fetch(`/api/update_history/${encodeURIComponent(pendingDeleteBatchId)}`, { method: 'DELETE' });
+            if (!res.ok) {
+                alert('ลบไม่สำเร็จ');
+                return;
+            }
+            closeDeleteConfirm();
+            await loadUpdateHistory();
+        }
+
+        async function deleteUpdateHistory(batchId) {
+            if (!batchId) return;
+            openDeleteConfirm(batchId);
+        }
+
+        async function logout() {
+            await fetch('/api/logout', { method: 'POST' });
+            window.location.href = '/login';
+        }
+
+        async function init() {
+            const user = await loadCurrentUser();
+            if (!user) return;
+            setupSidebarToggle();
+            await loadUpdateHistory();
+            const confirmModal = document.getElementById('deleteConfirmModal');
+            const confirmCancel = document.getElementById('deleteConfirmCancel');
+            const confirmOk = document.getElementById('deleteConfirmOk');
+            if (confirmCancel) confirmCancel.addEventListener('click', closeDeleteConfirm);
+            if (confirmOk) confirmOk.addEventListener('click', confirmDelete);
+            if (confirmModal) {
+                confirmModal.addEventListener('click', event => {
+                    if (event.target === confirmModal) closeDeleteConfirm();
+                });
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>

@@ -2,6 +2,7 @@
 <html lang="th">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>จัดการข้อมูลลูกค้า</title>
     <script src="https://code.iconify.design/3/3.1.1/iconify.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Sarabun:wght@300;400;600&display=swap" rel="stylesheet">
@@ -13,6 +14,9 @@
             <div class="sidebar-brand">
                 <div class="brand-mark"></div>
                 <div class="brand-text">โปลิ ฟาร์ม</div>
+                <button class="btn btn-ghost sidebar-toggle sidebar-toggle-mini" id="sidebarCollapseToggle" type="button" aria-pressed="false">
+                    <span class="iconify" data-icon="ant-design:menu-outlined"></span>
+                </button>
             </div>
             <div class="sidebar-section">
                 <div class="sidebar-title">เมนูหลัก</div>
@@ -20,24 +24,30 @@
                     <span class="iconify" data-icon="ant-design:home-outlined"></span>
                     หน้าแรก
                 </a>
-                <a class="nav-item" href="/dashboard">
+                <button class="nav-item collapsed" id="dashboardToggle" type="button" aria-expanded="false">
                     <span class="iconify" data-icon="ant-design:dashboard-outlined"></span>
                     แดชบอร์ด
-                </a>
-                <button class="nav-item" id="settingsToggle" type="button" aria-expanded="true">
+                    <span class="nav-caret iconify" data-icon="ant-design:down-outlined"></span>
+                </button>
+                <div class="nav-sub collapsed" id="dashboardMenu">
+                    <a class="nav-sub-item" href="/dashboard"><span class="iconify" data-icon="ant-design:line-chart-outlined"></span> ยอดขาย</a>
+                    <a class="nav-sub-item" href="/customer-summary"><span class="iconify" data-icon="ant-design:profile-outlined"></span> การ์ดลูกค้ารวม</a>
+                    <a class="nav-sub-item admin-only" href="/update-history"><span class="iconify" data-icon="ant-design:history-outlined"></span> ประวัติการอัปเดตข้อมูล</a>
+                </div>
+                <button class="nav-item active" id="settingsToggle" type="button" aria-expanded="true">
                     <span class="iconify" data-icon="ant-design:setting-outlined"></span>
                     จัดการข้อมูล
                     <span class="nav-caret iconify" data-icon="ant-design:down-outlined"></span>
                 </button>
                 <div class="nav-sub" id="settingsMenu">
                     <!-- <a class="nav-sub-item" href="/profile"><span class="iconify" data-icon="ant-design:user-outlined"></span> โปรไฟล์ของฉัน</a> -->
-                    <a class="nav-sub-item" href="/employees"><span class="iconify" data-icon="ant-design:team-outlined"></span> จัดการข้อมูลพนักงาน</a>
-                    <a class="nav-sub-item active" href="/customers"><span class="iconify" data-icon="ant-design:solution-outlined"></span> จัดการข้อมูลลูกค้า</a>
+                    <a class="nav-sub-item admin-only" href="/employees"><span class="iconify" data-icon="ant-design:team-outlined"></span> จัดการข้อมูลพนักงาน</a>
+                    <a class="nav-sub-item admin-only active" href="/customers"><span class="iconify" data-icon="ant-design:solution-outlined"></span> จัดการข้อมูลลูกค้า</a>
                 </div>
-                <a class="nav-item" href="/help">
+                <!-- <a class="nav-item" href="/help">
                     <span class="iconify" data-icon="ant-design:question-circle-outlined"></span>
                     ศูนย์ช่วยเหลือ
-                </a>
+                </a> -->
             </div>
             <div class="sidebar-footer">
                 <div class="user-badge" id="userBadge"></div>
@@ -45,9 +55,7 @@
             </div>
         </aside>
         <main class="page">
-            <div class="top-bar">
-                <div class="user-badge mobile-only" id="userBadgeTop"></div>
-            </div>
+            <div class="user-badge mobile-only" id="userBadgeTop"></div>
 
             <div class="card section">
                 <h3 class="card-title"><span class="iconify" data-icon="ant-design:solution-outlined"></span> จัดการข้อมูลลูกค้า</h3>
@@ -186,20 +194,54 @@
             const label = `${user.username} (${user.role})`;
             badge.textContent = label;
             if (badgeTop) badgeTop.textContent = label;
+            if (user.role !== 'Admin') {
+                document.querySelectorAll('.admin-only').forEach(el => {
+                    el.style.display = 'none';
+                });
+            }
             return user;
         }
 
         function setupSidebarToggle() {
             const toggle = document.getElementById('settingsToggle');
             const menu = document.getElementById('settingsMenu');
-            if (!toggle || !menu) return;
+            if (toggle && menu) {
+                toggle.addEventListener('click', () => {
+                    const isOpen = toggle.getAttribute('aria-expanded') === 'true';
+                    toggle.setAttribute('aria-expanded', String(!isOpen));
+                    menu.classList.toggle('collapsed', isOpen);
+                    toggle.classList.toggle('collapsed', isOpen);
+                });
+            }
 
-            toggle.addEventListener('click', () => {
-                const isOpen = toggle.getAttribute('aria-expanded') === 'true';
-                toggle.setAttribute('aria-expanded', String(!isOpen));
-                menu.classList.toggle('collapsed', isOpen);
-                toggle.classList.toggle('collapsed', isOpen);
-            });
+            const dashboardToggle = document.getElementById('dashboardToggle');
+            const dashboardMenu = document.getElementById('dashboardMenu');
+            if (dashboardToggle && dashboardMenu) {
+                dashboardToggle.addEventListener('click', () => {
+                    const isOpen = dashboardToggle.getAttribute('aria-expanded') === 'true';
+                    dashboardToggle.setAttribute('aria-expanded', String(!isOpen));
+                    dashboardMenu.classList.toggle('collapsed', isOpen);
+                    dashboardToggle.classList.toggle('collapsed', isOpen);
+                });
+            }
+
+            const collapseToggle = document.getElementById('sidebarCollapseToggle');
+            const layout = document.querySelector('.layout');
+            if (collapseToggle && layout) {
+                collapseToggle.addEventListener('click', () => {
+                    const isCollapsed = layout.classList.toggle('sidebar-collapsed');
+                    collapseToggle.setAttribute('aria-pressed', String(isCollapsed));
+                    localStorage.setItem('sidebarCollapsed', String(isCollapsed));
+                });
+            }
+
+            if (layout) {
+                const stored = localStorage.getItem('sidebarCollapsed') === 'true';
+                if (stored) {
+                    layout.classList.add('sidebar-collapsed');
+                    if (collapseToggle) collapseToggle.setAttribute('aria-pressed', 'true');
+                }
+            }
         }
 
         async function logout() {

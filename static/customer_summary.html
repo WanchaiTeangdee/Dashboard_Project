@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>การ์ดลูกค้ารวม</title>
+    <script src="https://code.iconify.design/3/3.1.1/iconify.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Sarabun:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="layout">
+        <aside class="sidebar">
+            <div class="sidebar-brand">
+                <div class="brand-mark"></div>
+                <div class="brand-text">โปลิ ฟาร์ม</div>
+                <button class="btn btn-ghost sidebar-toggle sidebar-toggle-mini" id="sidebarCollapseToggle" type="button" aria-pressed="false">
+                    <span class="iconify" data-icon="ant-design:menu-outlined"></span>
+                </button>
+            </div>
+            <div class="sidebar-section">
+                <div class="sidebar-title">เมนูหลัก</div>
+                <a class="nav-item" href="/">
+                    <span class="iconify" data-icon="ant-design:home-outlined"></span>
+                    หน้าแรก
+                </a>
+                <button class="nav-item active" id="dashboardToggle" type="button" aria-expanded="true">
+                    <span class="iconify" data-icon="ant-design:dashboard-outlined"></span>
+                    แดชบอร์ด
+                    <span class="nav-caret iconify" data-icon="ant-design:down-outlined"></span>
+                </button>
+                <div class="nav-sub" id="dashboardMenu">
+                    <a class="nav-sub-item" href="/dashboard"><span class="iconify" data-icon="ant-design:line-chart-outlined"></span> ยอดขาย</a>
+                    <a class="nav-sub-item active" href="/customer-summary"><span class="iconify" data-icon="ant-design:profile-outlined"></span> การ์ดลูกค้ารวม</a>
+                    <a class="nav-sub-item admin-only" href="/update-history"><span class="iconify" data-icon="ant-design:history-outlined"></span> ประวัติการอัปเดตข้อมูล</a>
+                </div>
+                <button class="nav-item collapsed" id="settingsToggle" type="button" aria-expanded="false">
+                    <span class="iconify" data-icon="ant-design:setting-outlined"></span>
+                    จัดการข้อมูล
+                    <span class="nav-caret iconify" data-icon="ant-design:down-outlined"></span>
+                </button>
+                <div class="nav-sub collapsed" id="settingsMenu">
+                    <!-- <a class="nav-sub-item" href="/profile"><span class="iconify" data-icon="ant-design:user-outlined"></span> โปรไฟล์ของฉัน</a> -->
+                    <a class="nav-sub-item admin-only" id="navEmployeeMgmt" href="/employees"><span class="iconify" data-icon="ant-design:team-outlined"></span> จัดการข้อมูลพนักงาน</a>
+                    <a class="nav-sub-item admin-only" id="navCustomerMgmt" href="/customers"><span class="iconify" data-icon="ant-design:solution-outlined"></span> จัดการข้อมูลลูกค้า</a>
+                </div>
+                <!-- <a class="nav-item" href="/help">
+                    <span class="iconify" data-icon="ant-design:question-circle-outlined"></span>
+                    ศูนย์ช่วยเหลือ
+                </a> -->
+            </div>
+            <div class="sidebar-footer">
+                <div class="user-badge" id="userBadge"></div>
+                <button class="btn btn-ghost" onclick="logout()">ออกจากระบบ</button>
+            </div>
+        </aside>
+        <main class="page">
+            <div class="user-badge mobile-only" id="userBadgeTop"></div>
+
+            <section id="customerSummarySection" class="dashboard-section">
+                <div class="section-heading">การ์ดลูกค้ารวม</div>
+                <div class="card section admin-only" id="uploadSection">
+                    <h3 class="card-title"><span class="iconify" data-icon="ant-design:upload-outlined"></span> นำเข้าไฟล์ Excel</h3>
+                    <div class="row">
+                        <a class="btn btn-ghost" href="/api/customer_summary_template" download>
+                            <span class="iconify" data-icon="ant-design:download-outlined"></span>
+                            ดาวน์โหลดไฟล์ตัวอย่าง
+                        </a>
+                        <input type="file" id="excelFile" accept=".xlsx,.xls" />
+                        <button class="btn btn-primary" onclick="uploadExcel()">อัปโหลด</button>
+                        <span id="uploadStatus" class="muted-text"></span>
+                    </div>
+                </div>
+                <div class="filter-bar" id="customerFilterSection">
+                    <h3 class="filter-title"><span class="iconify" data-icon="ant-design:filter-outlined"></span> ตัวกรอง</h3>
+                    <select id="customerYear"></select>
+                    <select id="customerSelect">
+                        <option value="">เลือกชื่อ/รหัสลูกค้า</option>
+                    </select>
+                    <button class="btn btn-primary" onclick="loadCustomerSummary()">แสดงรายงาน</button>
+                    <span id="customerSummaryStatus" class="muted-text"></span>
+                </div>
+
+                <div class="card section" id="customerSummaryCard">
+                    <h3 class="card-title"><span class="iconify" data-icon="ant-design:profile-outlined"></span> การ์ดลูกค้ารวม</h3>
+                    <div class="table-stack">
+                        <div class="card table-card">
+                            <h3 class="card-title"><span class="iconify" data-icon="ant-design:unordered-list-outlined"></span> รายการสินค้าที่ซื้อ</h3>
+                            <div class="table-wrap">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>รหัสสินค้า</th>
+                                            <th>รายละเอียด</th>
+                                            <th>ราคา/หน่วย</th>
+                                            <th>รวมจำนวน</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="customerProductBody"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="card table-card">
+                            <h3 class="card-title"><span class="iconify" data-icon="ant-design:calendar-outlined"></span> จำนวนซื้อรายเดือน</h3>
+                            <div class="table-wrap">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>สินค้า</th>
+                                            <th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th>
+                                            <th>7</th><th>8</th><th>9</th><th>10</th><th>11</th><th>12</th>
+                                            <th>รวม</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="customerMonthBody"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        async function loadOptions() {
+            const res = await fetch('/api/options');
+            if (!res.ok) return;
+            const opts = await res.json();
+
+            const customerYear = document.getElementById('customerYear');
+            customerYear.innerHTML = '';
+            (opts.years || []).forEach(y => customerYear.add(new Option(y, y)));
+        }
+
+        async function loadCustomerOptions() {
+            const select = document.getElementById('customerSelect');
+            if (!select) return;
+            const res = await fetch('/api/customer_options');
+            if (!res.ok) return;
+            const data = await res.json();
+            select.innerHTML = '<option value="">เลือกชื่อ/รหัสลูกค้า</option>';
+            (data.items || []).forEach(item => {
+                const option = new Option(item.label, item.value || '');
+                select.add(option);
+            });
+        }
+
+        async function loadCurrentUser() {
+            const res = await fetch('/api/me');
+            if (!res.ok) {
+                window.location.href = '/login';
+                return null;
+            }
+            const user = await res.json();
+            const badge = document.getElementById('userBadge');
+            const badgeTop = document.getElementById('userBadgeTop');
+            const label = `${user.username} (${user.role})`;
+            badge.textContent = label;
+            if (badgeTop) badgeTop.textContent = label;
+
+            const employeeMgmt = document.getElementById('navEmployeeMgmt');
+            const customerMgmt = document.getElementById('navCustomerMgmt');
+            if (user.role !== 'Admin') {
+                document.querySelectorAll('.admin-only').forEach(el => {
+                    el.style.display = 'none';
+                });
+                const uploadSection = document.getElementById('uploadSection');
+                if (uploadSection) uploadSection.style.display = 'none';
+                if (employeeMgmt) employeeMgmt.style.display = 'none';
+                if (customerMgmt) customerMgmt.style.display = 'none';
+            }
+            return user;
+        }
+
+        function setupSidebarToggle() {
+            const toggle = document.getElementById('settingsToggle');
+            const menu = document.getElementById('settingsMenu');
+            if (toggle && menu) {
+                toggle.addEventListener('click', () => {
+                    const isOpen = toggle.getAttribute('aria-expanded') === 'true';
+                    toggle.setAttribute('aria-expanded', String(!isOpen));
+                    menu.classList.toggle('collapsed', isOpen);
+                    toggle.classList.toggle('collapsed', isOpen);
+                });
+            }
+
+            const dashboardToggle = document.getElementById('dashboardToggle');
+            const dashboardMenu = document.getElementById('dashboardMenu');
+            if (dashboardToggle && dashboardMenu) {
+                dashboardToggle.addEventListener('click', () => {
+                    const isOpen = dashboardToggle.getAttribute('aria-expanded') === 'true';
+                    dashboardToggle.setAttribute('aria-expanded', String(!isOpen));
+                    dashboardMenu.classList.toggle('collapsed', isOpen);
+                    dashboardToggle.classList.toggle('collapsed', isOpen);
+                });
+            }
+
+            const collapseToggle = document.getElementById('sidebarCollapseToggle');
+            const layout = document.querySelector('.layout');
+            if (collapseToggle && layout) {
+                collapseToggle.addEventListener('click', () => {
+                    const isCollapsed = layout.classList.toggle('sidebar-collapsed');
+                    collapseToggle.setAttribute('aria-pressed', String(isCollapsed));
+                    localStorage.setItem('sidebarCollapsed', String(isCollapsed));
+                });
+            }
+
+            if (layout) {
+                const stored = localStorage.getItem('sidebarCollapsed') === 'true';
+                if (stored) {
+                    layout.classList.add('sidebar-collapsed');
+                    if (collapseToggle) collapseToggle.setAttribute('aria-pressed', 'true');
+                } else if (window.matchMedia('(max-width: 768px)').matches) {
+                    layout.classList.add('sidebar-collapsed');
+                    if (collapseToggle) collapseToggle.setAttribute('aria-pressed', 'true');
+                    localStorage.setItem('sidebarCollapsed', 'true');
+                }
+            }
+        }
+
+        async function init() {
+            const user = await loadCurrentUser();
+            if (!user) return;
+            setupSidebarToggle();
+            await loadOptions();
+            await loadCustomerOptions();
+        }
+
+        async function loadCustomerSummary() {
+            const year = document.getElementById('customerYear').value;
+            const customer = document.getElementById('customerSelect').value;
+            const status = document.getElementById('customerSummaryStatus');
+            if (!year || !customer) {
+                if (status) status.textContent = 'กรุณาเลือกปี และชื่อ/รหัสลูกค้า';
+                return;
+            }
+            if (status) status.textContent = 'กำลังโหลด...';
+
+            const res = await fetch(`/api/customer_purchase_summary?year=${year}&customer=${encodeURIComponent(customer)}`);
+            if (!res.ok) {
+                if (status) status.textContent = 'โหลดข้อมูลไม่สำเร็จ';
+                return;
+            }
+            const data = await res.json();
+            renderCustomerTables(data);
+            if (status) status.textContent = '';
+        }
+
+
+        function renderCustomerTables(data) {
+            const leftBody = document.getElementById('customerProductBody');
+            const rightBody = document.getElementById('customerMonthBody');
+            if (!leftBody || !rightBody) return;
+            leftBody.innerHTML = '';
+            rightBody.innerHTML = '';
+
+            const normalizeProductCode = (value) => {
+                if (value === null || value === undefined) return '';
+                const textValue = String(value).trim();
+                if (!textValue) return '';
+                return textValue.replace(/\.0$/, '');
+            };
+
+            (data.items || []).forEach(item => {
+                const trLeft = document.createElement('tr');
+                trLeft.innerHTML = `
+                    <td>${normalizeProductCode(item.product_code)}</td>
+                    <td>${item.product_name || ''}</td>
+                    <td>${(item.unit_price ?? 0).toLocaleString('th-TH')}</td>
+                    <td>${(item.total ?? 0).toLocaleString('th-TH')}</td>
+                `;
+                leftBody.appendChild(trLeft);
+
+                const months = item.months || {};
+                const trRight = document.createElement('tr');
+                trRight.innerHTML = `
+                    <td>${normalizeProductCode(item.product_code)}</td>
+                    <td>${(months['1'] ?? 0).toLocaleString('th-TH')}</td>
+                    <td>${(months['2'] ?? 0).toLocaleString('th-TH')}</td>
+                    <td>${(months['3'] ?? 0).toLocaleString('th-TH')}</td>
+                    <td>${(months['4'] ?? 0).toLocaleString('th-TH')}</td>
+                    <td>${(months['5'] ?? 0).toLocaleString('th-TH')}</td>
+                    <td>${(months['6'] ?? 0).toLocaleString('th-TH')}</td>
+                    <td>${(months['7'] ?? 0).toLocaleString('th-TH')}</td>
+                    <td>${(months['8'] ?? 0).toLocaleString('th-TH')}</td>
+                    <td>${(months['9'] ?? 0).toLocaleString('th-TH')}</td>
+                    <td>${(months['10'] ?? 0).toLocaleString('th-TH')}</td>
+                    <td>${(months['11'] ?? 0).toLocaleString('th-TH')}</td>
+                    <td>${(months['12'] ?? 0).toLocaleString('th-TH')}</td>
+                    <td>${(item.total ?? 0).toLocaleString('th-TH')}</td>
+                `;
+                rightBody.appendChild(trRight);
+            });
+        }
+
+        async function uploadExcel() {
+            const fileInput = document.getElementById('excelFile');
+            const status = document.getElementById('uploadStatus');
+            if (!fileInput.files.length) {
+                status.textContent = 'กรุณาเลือกไฟล์ก่อน';
+                return;
+            }
+
+            status.textContent = 'กำลังอัปโหลด...';
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+
+            const res = await fetch('/api/upload_excel', { method: 'POST', body: formData });
+            if (!res.ok) {
+                const err = await res.json();
+                status.textContent = err.detail || 'อัปโหลดไม่สำเร็จ';
+                return;
+            }
+
+            const result = await res.json();
+            status.textContent = `นำเข้า ${result.rows} แถว สำเร็จ`;
+            await loadOptions();
+            await loadCustomerOptions();
+        }
+
+        async function logout() {
+            await fetch('/api/logout', { method: 'POST' });
+            window.location.href = '/login';
+        }
+
+        init();
+    </script>
+</body>
+</html>
